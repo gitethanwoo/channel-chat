@@ -4,6 +4,7 @@
  * Supports both HTTP and stdio transports.
  */
 
+import { config } from 'dotenv';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
@@ -48,6 +49,9 @@ import { search, formatTimestamp } from './search.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+// Load .env from project root
+config({ path: join(__dirname, '..', '..', '.env') });
 
 // UI Resource URI for the video player
 const PLAYER_RESOURCE_URI = 'ui://channel-chat/player.html';
@@ -273,16 +277,20 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 // Handle tool calls
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
+  console.log(`[MCP] Tool call: ${name}`, args);
 
   if (name === 'search_transcripts') {
     const query = args?.query as string;
     const limit = (args?.limit as number) || 5;
+    console.log(`[MCP] Searching for: "${query}" (limit: ${limit})`);
 
-    const db = getConnection();
-    initDb(db);
-    db.close();
+    try {
+      const db = getConnection();
+      initDb(db);
+      db.close();
 
-    const results = await search(query, limit);
+      const results = await search(query, limit);
+      console.log(`[MCP] Search returned ${results.length} results`);
 
     if (results.length === 0) {
       return { content: [{ type: 'text', text: 'No results found.' }] };
@@ -314,6 +322,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       content: [{ type: 'text', text: output }],
       structuredContent: { query, results },
     };
+    } catch (error) {
+      console.error(`[MCP] Search error:`, error);
+      return { content: [{ type: 'text', text: `Search error: ${error}` }] };
+    }
   }
 
   if (name === 'list_indexed_channels') {

@@ -47,6 +47,50 @@ def _parse_srt_timestamp(timestamp: str) -> float:
     return hours * 3600 + minutes * 60 + seconds
 
 
+def _deduplicate_vtt_segments(segments: list[dict]) -> list[dict]:
+    """Deduplicate VTT segments that have rolling/scrolling text.
+
+    YouTube captions often show scrolling text where each cue contains
+    previous text plus new text. This function extracts only the unique
+    new text from each segment.
+
+    Args:
+        segments: List of parsed VTT segments.
+
+    Returns:
+        Deduplicated segments with only unique text.
+    """
+    if not segments:
+        return []
+
+    result = []
+    prev_text = ""
+
+    for segment in segments:
+        text = segment["text"]
+
+        # If current text starts with previous text, extract only new part
+        if prev_text and text.startswith(prev_text):
+            new_text = text[len(prev_text):].strip()
+        elif prev_text and prev_text in text:
+            # Previous text is somewhere in current text - extract after it
+            idx = text.find(prev_text)
+            new_text = text[idx + len(prev_text):].strip()
+        else:
+            new_text = text
+
+        if new_text:
+            result.append({
+                "text": new_text,
+                "start_time": segment["start_time"],
+                "end_time": segment["end_time"],
+            })
+
+        prev_text = text
+
+    return result
+
+
 def parse_vtt(file_path: Path) -> list[dict]:
     """Parse a VTT subtitle file.
 
@@ -98,6 +142,8 @@ def parse_vtt(file_path: Path) -> list[dict]:
                 end_time = _parse_vtt_timestamp(timestamp_match.group(2))
 
                 # Collect text lines until empty line or next timestamp
+                # YouTube VTT has carryover text (no tags) and new text (with <c> tags)
+                # We only want lines with inline timestamps (<c> or <00:) as those are new words
                 text_lines = []
                 i += 1
                 while i < len(lines):
@@ -108,9 +154,14 @@ def parse_vtt(file_path: Path) -> list[dict]:
                     if "-->" in text_line:
                         i -= 1  # Back up so outer loop catches this timestamp
                         break
-                    # Remove VTT formatting tags like <c>, </c>, <00:00:00.000>
-                    clean_line = re.sub(r"<[^>]+>", "", text_line)
-                    text_lines.append(clean_line.strip())
+                    # Only keep lines with inline timestamps (new content)
+                    # Lines without <c> or <00: tags are carryover from previous cue
+                    has_inline_timestamps = "<c>" in text_line or re.search(r"<\d{2}:\d{2}", text_line)
+                    if has_inline_timestamps or len(text_lines) == 0:
+                        # Remove VTT formatting tags like <c>, </c>, <00:00:00.000>
+                        clean_line = re.sub(r"<[^>]+>", "", text_line)
+                        if has_inline_timestamps:  # Only add lines with actual new content
+                            text_lines.append(clean_line.strip())
                     i += 1
 
                 text = " ".join(text_lines).strip()
@@ -123,7 +174,8 @@ def parse_vtt(file_path: Path) -> list[dict]:
 
         i += 1
 
-    return segments
+    # Deduplicate rolling/scrolling text common in YouTube captions
+    return _deduplicate_vtt_segments(segments)
 
 
 def parse_srt(file_path: Path) -> list[dict]:

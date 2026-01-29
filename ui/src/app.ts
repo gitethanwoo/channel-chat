@@ -10,6 +10,7 @@ import {
   applyHostFonts,
   type McpUiHostContext,
 } from "@modelcontextprotocol/ext-apps";
+import { ReadResourceResultSchema } from "@modelcontextprotocol/sdk/types.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import "./styles.css";
 
@@ -22,7 +23,7 @@ interface SearchResult {
   start_time: number;
   end_time: number;
   youtube_url: string;
-  clip_url: string;
+  clip_resource_uri: string;
   score: number;
 }
 
@@ -38,6 +39,7 @@ const channelEl = document.getElementById("channel-name") as HTMLElement;
 const timestampEl = document.getElementById("timestamp") as HTMLElement;
 const transcriptEl = document.getElementById("transcript-text") as HTMLElement;
 const scoreEl = document.getElementById("score") as HTMLElement;
+const fallbackEl = document.getElementById("youtube-fallback") as HTMLElement;
 
 // Format seconds to MM:SS or HH:MM:SS
 function formatTimestamp(seconds: number): string {
@@ -51,47 +53,36 @@ function formatTimestamp(seconds: number): string {
   return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 
-// Store current result for click handler
-let currentResult: SearchResult | null = null;
+// Create MCP App
+const app = new App({ name: "Channel Chat Player", version: "1.0.0" });
+
+type VideoBlobContent = {
+  uri: string;
+  mimeType: string;
+  blob: string;
+};
+
+async function loadClip(resourceUri: string): Promise<string> {
+  const resourceResult = await app.request(
+    { method: "resources/read", params: { uri: resourceUri } },
+    ReadResourceResultSchema
+  );
+  const content = resourceResult.contents[0] as VideoBlobContent;
+  return `data:${content.mimeType};base64,${content.blob}`;
+}
 
 // Render a search result as video player
-function renderResult(result: SearchResult) {
-  currentResult = result;
-  const videoContainer = document.querySelector(".video-container") as HTMLElement;
+async function renderResult(result: SearchResult) {
+  const videoContainer = document.getElementById("thumbnail-wrapper") as HTMLElement;
 
-  // Use native video player with clip URL, fallback to YouTube link
-  if (result.clip_url) {
-    videoContainer.innerHTML = `
-      <video id="clip-player" controls autoplay playsinline>
-        <source src="${result.clip_url}" type="video/mp4">
-        Your browser does not support video playback.
-      </video>
-      <div class="youtube-fallback">
-        <a href="${result.youtube_url}" target="_blank">Watch on YouTube</a>
-      </div>
-    `;
-  } else {
-    // Fallback: YouTube link card
-    videoContainer.innerHTML = `
-      <div class="video-card" id="video-card">
-        <div class="play-button">
-          <svg viewBox="0 0 68 48" width="68" height="48">
-            <path d="M66.52,7.74c-0.78-2.93-2.49-5.41-5.42-6.19C55.79,.13,34,0,34,0S12.21,.13,6.9,1.55 C3.97,2.33,2.27,4.81,1.48,7.74C0.06,13.05,0,24,0,24s0.06,10.95,1.48,16.26c0.78,2.93,2.49,5.41,5.42,6.19 C12.21,47.87,34,48,34,48s21.79-0.13,27.1-1.55c2.93-0.78,4.64-3.26,5.42-6.19C67.94,34.95,68,24,68,24S67.94,13.05,66.52,7.74z" fill="#f00"/>
-            <path d="M 45,24 27,14 27,34" fill="#fff"/>
-          </svg>
-        </div>
-        <div class="watch-text">Click to watch on YouTube</div>
-      </div>
-    `;
-    const card = document.getElementById("video-card");
-    if (card) {
-      card.onclick = () => {
-        if (currentResult) {
-          window.open(currentResult.youtube_url, "_blank");
-        }
-      };
-    }
-  }
+  videoContainer.innerHTML = `<div class="loading"></div>`;
+  const dataUri = await loadClip(result.clip_resource_uri);
+  videoContainer.innerHTML = `
+    <video id="clip-player" controls autoplay playsinline></video>
+  `;
+  fallbackEl.innerHTML = `<a href="${result.youtube_url}" target="_blank">Watch on YouTube</a>`;
+  const clipPlayer = document.getElementById("clip-player") as HTMLVideoElement;
+  clipPlayer.src = dataUri;
 
   // Update info
   titleEl.textContent = result.video_title;
@@ -111,19 +102,15 @@ function renderResult(result: SearchResult) {
 
 // Extract results from tool output
 function extractResults(result: CallToolResult): ToolResultContent | null {
-  try {
-    // Check structuredContent first
-    if (result.structuredContent) {
-      return result.structuredContent as ToolResultContent;
-    }
+  if (result.structuredContent) {
+    return result.structuredContent as ToolResultContent;
+  }
 
-    // Try to parse from text content
-    const textContent = result.content?.find((c: any) => c.type === "text");
-    if (textContent && "text" in textContent) {
-      return JSON.parse(textContent.text);
-    }
-  } catch (e) {
-    console.error("Failed to extract results:", e);
+  const textContent = result.content?.find(
+    (c): c is { type: "text"; text: string } => c.type === "text"
+  );
+  if (textContent) {
+    return JSON.parse(textContent.text) as ToolResultContent;
   }
   return null;
 }
@@ -147,13 +134,9 @@ function handleHostContextChanged(ctx: McpUiHostContext) {
   }
 }
 
-// Create MCP App
-const app = new App({ name: "Channel Chat Player", version: "1.0.0" });
-
 // Register handlers BEFORE connecting
 app.onteardown = async () => {
   console.info("[Player] Teardown");
-  currentResult = null;
   return {};
 };
 
@@ -163,18 +146,18 @@ app.ontoolinput = (params) => {
   playerEl.classList.add("loading");
 };
 
-app.ontoolresult = (result) => {
+app.ontoolresult = async (result) => {
   console.info("[Player] Tool result:", result);
-  playerEl.classList.remove("loading");
 
   const data = extractResults(result);
   if (data && data.results && data.results.length > 0) {
     // Show the best result (first one)
-    renderResult(data.results[0]);
+    await renderResult(data.results[0]);
   } else {
     titleEl.textContent = "No results found";
     transcriptEl.textContent = "Try a different search query.";
   }
+  playerEl.classList.remove("loading");
 };
 
 app.ontoolcancelled = () => {

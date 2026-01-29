@@ -58,6 +58,8 @@ config({ path: join(__dirname, '..', '..', '.env') });
 // UI Resource URI for the video player
 const PLAYER_RESOURCE_URI = 'ui://channel-chat/player.html';
 const RESOURCE_MIME_TYPE = 'text/html;profile=mcp-app';
+const CLIP_RESOURCE_PREFIX = 'video://clip/';
+const CLIP_RESOURCE_MIME_TYPE = 'video/mp4';
 
 /**
  * Load the bundled UI HTML.
@@ -73,6 +75,53 @@ function getUiHtml(): string {
 <h2>Channel Chat Player</h2>
 <p>UI not built. Run <code>cd ui && npm run build</code></p>
 </body></html>`;
+}
+
+function buildClipArgs(videoPath: string, start: number, duration: number): string[] {
+  return [
+    '-ss', start.toString(),
+    '-i', videoPath,
+    '-t', duration.toString(),
+    '-vf', 'scale=-2:720',
+    '-c:v', 'libx264',
+    '-preset', 'ultrafast',
+    '-crf', '23',
+    '-c:a', 'aac',
+    '-movflags', '+frag_keyframe+empty_moov+faststart',
+    '-f', 'mp4',
+    '-loglevel', 'error',
+    'pipe:1'
+  ];
+}
+
+function parseClipResourceUri(uri: string): { videoId: string; start: number; duration: number } {
+  const url = new URL(uri);
+  const videoId = url.pathname.replace(/^\//, '');
+  const start = parseFloat(url.searchParams.get('start') || '0');
+  const duration = parseFloat(url.searchParams.get('duration') || '30');
+  return { videoId, start, duration };
+}
+
+function clipToBase64(videoPath: string, start: number, duration: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const ffmpeg = spawn('ffmpeg', buildClipArgs(videoPath, start, duration));
+    const chunks: Buffer[] = [];
+
+    ffmpeg.stdout.on('data', (chunk: Buffer) => {
+      chunks.push(chunk);
+    });
+    ffmpeg.stderr.on('data', (data) => {
+      console.error(`[ffmpeg] ${data}`);
+    });
+    ffmpeg.on('error', reject);
+    ffmpeg.on('close', (code) => {
+      if (code !== 0) {
+        reject(new Error(`ffmpeg exited with code ${code}`));
+        return;
+      }
+      resolve(Buffer.concat(chunks).toString('base64'));
+    });
+  });
 }
 
 interface IndexResult {
@@ -199,6 +248,34 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
       ],
     };
   }
+  if (request.params.uri.startsWith(CLIP_RESOURCE_PREFIX)) {
+    const { videoId, start, duration } = parseClipResourceUri(request.params.uri);
+
+    const db = getConnection();
+    initDb(db);
+    const video = getVideo(db, videoId);
+    db.close();
+
+    if (!video) {
+      throw new Error(`Video not found: ${videoId}`);
+    }
+    if (!video.video_path || !existsSync(video.video_path)) {
+      throw new Error(`Video file not found for ${videoId}. Set video_path first.`);
+    }
+
+    console.log(`[MCP] Resource clip: ${videoId} from ${start}s for ${duration}s`);
+    const base64 = await clipToBase64(video.video_path, start, duration);
+
+    return {
+      contents: [
+        {
+          uri: request.params.uri,
+          mimeType: CLIP_RESOURCE_MIME_TYPE,
+          blob: base64,
+        },
+      ],
+    };
+  }
   throw new Error(`Unknown resource: ${request.params.uri}`);
 });
 
@@ -281,7 +358,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: 'set_video_path',
-        description: 'Set the local file path for a video. Required for clip streaming.',
+        description: 'Set the local file path for a video. Required for clip resources.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -319,10 +396,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const results = await search(query, limit);
       console.log(`[MCP] Search returned ${results.length} results`);
 
-      // Add clip URLs to results
+      // Add clip resource URIs to results
       for (const r of results) {
         const duration = Math.ceil(r.end_time - r.start_time) + 5; // Add 5 sec buffer
-        r.clip_url = `${BASE_URL}/clip?video_id=${r.video_id}&start=${Math.floor(r.start_time)}&duration=${duration}`;
+        const start = Math.floor(r.start_time);
+        r.clip_resource_uri = `${CLIP_RESOURCE_PREFIX}${r.video_id}?start=${start}&duration=${duration}`;
       }
 
     if (results.length === 0) {
@@ -348,7 +426,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       output += `- Channel: ${r.channel_name}\n`;
       output += `- Timestamp: ${timestamp}\n`;
       output += `- Link: ${r.youtube_url}\n`;
-      output += `- Clip: ${r.clip_url}\n`;
+      output += `- Clip Resource: ${r.clip_resource_uri}\n`;
       output += `- Excerpt: ${text.slice(0, 300)}${text.length > 300 ? '...' : ''}\n\n`;
     }
 
@@ -525,8 +603,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 });
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
-const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
-
 /**
  * Run as HTTP server.
  */
@@ -583,20 +659,7 @@ async function startHttpServer() {
         'Cache-Control': 'no-cache',
       });
 
-      const ffmpeg = spawn('ffmpeg', [
-        '-ss', start.toString(),
-        '-i', video.video_path,
-        '-t', duration.toString(),
-        '-vf', 'scale=-2:720',
-        '-c:v', 'libx264',
-        '-preset', 'ultrafast',
-        '-crf', '23',
-        '-c:a', 'aac',
-        '-movflags', '+frag_keyframe+empty_moov+faststart',
-        '-f', 'mp4',
-        '-loglevel', 'error',
-        'pipe:1'
-      ]);
+      const ffmpeg = spawn('ffmpeg', buildClipArgs(video.video_path, start, duration));
 
       ffmpeg.stdout.pipe(res);
 
@@ -723,20 +786,7 @@ function startClipServer() {
       'Cache-Control': 'no-cache',
     });
 
-    const ffmpeg = spawn('ffmpeg', [
-      '-ss', start.toString(),
-      '-i', video.video_path,
-      '-t', duration.toString(),
-      '-vf', 'scale=-2:720',
-      '-c:v', 'libx264',
-      '-preset', 'ultrafast',
-      '-crf', '23',
-      '-c:a', 'aac',
-      '-movflags', '+frag_keyframe+empty_moov+faststart',
-      '-f', 'mp4',
-      '-loglevel', 'error',
-      'pipe:1'
-    ]);
+    const ffmpeg = spawn('ffmpeg', buildClipArgs(video.video_path, start, duration));
 
     ffmpeg.stdout.pipe(res);
     ffmpeg.stderr.on('data', (data) => console.error(`[ffmpeg] ${data}`));

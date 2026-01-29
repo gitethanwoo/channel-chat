@@ -34,6 +34,10 @@ const RESOURCE_META = {
   csp: {
     // Allow YouTube embeds (using nocookie domain for privacy/fewer restrictions)
     frameDomains: ['https://www.youtube-nocookie.com'],
+    // Allow loading videos from our own domain
+    resourceDomains: ['https://channelmcp.com'],
+    // Allow API calls to our domain
+    connectDomains: ['https://channelmcp.com'],
   },
 };
 

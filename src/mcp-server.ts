@@ -152,6 +152,14 @@ const server = new Server(
 );
 
 // List resources
+// Resource metadata for sandbox/CSP configuration
+const RESOURCE_META = {
+  csp: {
+    // Allow YouTube embeds
+    frameDomains: ['https://www.youtube.com', 'https://youtube.com'],
+  },
+};
+
 server.setRequestHandler(ListResourcesRequestSchema, async () => ({
   resources: [
     {
@@ -159,6 +167,7 @@ server.setRequestHandler(ListResourcesRequestSchema, async () => ({
       name: 'Video Player',
       description: 'Interactive video player for search results',
       mimeType: RESOURCE_MIME_TYPE,
+      _meta: RESOURCE_META,
     },
   ],
 }));
@@ -172,6 +181,7 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
           uri: PLAYER_RESOURCE_URI,
           mimeType: RESOURCE_MIME_TYPE,
           text: getUiHtml(),
+          _meta: RESOURCE_META,
         },
       ],
     };

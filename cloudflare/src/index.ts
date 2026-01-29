@@ -19,6 +19,7 @@ import {
   upsertVectors,
   deleteVectors,
 } from './vectorize';
+import { searchTranscripts } from './mcp-handler';
 
 // CORS headers for all responses
 const corsHeaders = {
@@ -59,6 +60,35 @@ function jsonResponse(data: unknown, status = 200): Response {
  */
 function errorResponse(message: string, status = 500): Response {
   return jsonResponse({ error: message }, status);
+}
+
+/**
+ * Verify API key authentication for protected routes.
+ * Returns null if authentication is valid, or an error Response if invalid.
+ * Skips auth if API_KEY is not set (for development).
+ */
+function verifyApiKey(request: Request, env: Env): Response | null {
+  // Skip auth if API_KEY is not configured (development mode)
+  if (!env.API_KEY) {
+    return null;
+  }
+
+  const authHeader = request.headers.get('Authorization');
+  if (!authHeader) {
+    return errorResponse('Missing Authorization header', 401);
+  }
+
+  const match = authHeader.match(/^Bearer\s+(.+)$/i);
+  if (!match) {
+    return errorResponse('Invalid Authorization header format. Expected: Bearer <api_key>', 401);
+  }
+
+  const providedKey = match[1];
+  if (providedKey !== env.API_KEY) {
+    return errorResponse('Invalid API key', 401);
+  }
+
+  return null;
 }
 
 /**
@@ -327,6 +357,35 @@ async function handleTranscriptRequest(videoId: string, env: Env): Promise<Respo
 }
 
 /**
+ * Handle POST /api/search - Search transcripts
+ */
+async function handleSearchRequest(request: Request, env: Env): Promise<Response> {
+  try {
+    const body = await request.json() as { query?: string; limit?: number };
+
+    if (!body.query || typeof body.query !== 'string') {
+      return errorResponse('Missing required field: query', 400);
+    }
+
+    const limit = typeof body.limit === 'number' ? Math.min(body.limit, 20) : 5;
+
+    // Get base URL from request for generating cloudflare_video_url
+    const url = new URL(request.url);
+    const baseUrl = `${url.protocol}//${url.host}`;
+
+    const result = await searchTranscripts(env, body.query, limit, baseUrl);
+
+    return jsonResponse(result.structuredContent);
+  } catch (error) {
+    console.error('Search request error:', error);
+    return errorResponse(
+      error instanceof Error ? error.message : 'Failed to search transcripts',
+      500
+    );
+  }
+}
+
+/**
  * Handle GET /api/stats - Return database statistics
  */
 async function handleStatsRequest(env: Env): Promise<Response> {
@@ -440,14 +499,18 @@ export default {
         return handleMCPRequest();
       }
 
-      // Indexing API
+      // Indexing API (requires API key authentication)
       if (path === '/api/index' && method === 'POST') {
+        const authError = verifyApiKey(request, env);
+        if (authError) return authError;
         return await handleIndexRequest(request, env);
       }
 
-      // Delete video API - match /api/video/:id
+      // Delete video API - match /api/video/:id (requires API key authentication)
       const deleteVideoMatch = path.match(/^\/api\/video\/([^/]+)$/);
       if (deleteVideoMatch && method === 'DELETE') {
+        const authError = verifyApiKey(request, env);
+        if (authError) return authError;
         return await handleDeleteVideo(deleteVideoMatch[1], env);
       }
 
@@ -461,6 +524,11 @@ export default {
       const transcriptMatch = path.match(/^\/transcript\/([^/]+)$/);
       if (transcriptMatch && method === 'GET') {
         return await handleTranscriptRequest(transcriptMatch[1], env);
+      }
+
+      // Search API
+      if (path === '/api/search' && method === 'POST') {
+        return await handleSearchRequest(request, env);
       }
 
       // Stats API

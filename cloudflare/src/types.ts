@@ -5,6 +5,7 @@ export interface Env {
   R2: R2Bucket;
   AI: Ai;
   ENVIRONMENT: string;
+  API_KEY?: string;
 }
 
 // Database row types

@@ -30,6 +30,9 @@ binding = "AI"
 [vars]
 ENVIRONMENT = "production"
 
+# Set API key for indexing endpoints:
+# wrangler secret put API_KEY
+
 # Development overrides
 [env.dev]
 name = "channel-chat-dev"

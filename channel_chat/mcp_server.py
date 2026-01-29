@@ -236,6 +236,7 @@ async def call_tool(name: str, arguments: dict):
         if not results:
             return [TextContent(type="text", text="No results found.")]
 
+        # Build text output for non-UI hosts
         output = f"Found {len(results)} results for: {query}\n\n"
 
         for i, r in enumerate(results, 1):
@@ -254,7 +255,24 @@ async def call_tool(name: str, arguments: dict):
             output += f"- Link: {r['youtube_url']}\n"
             output += f"- Excerpt: {text[:300]}{'...' if len(text) > 300 else ''}\n\n"
 
-        return [TextContent(type="text", text=output)]
+        # Build structured data for UI
+        structured_results = {
+            "query": query,
+            "results": results,
+        }
+
+        return [
+            TextContent(
+                type="text",
+                text=json.dumps(structured_results),
+                meta={
+                    "ui": {
+                        "resourceUri": PLAYER_RESOURCE_URI,
+                    }
+                }
+            ),
+            TextContent(type="text", text=output),
+        ]
 
     elif name == "list_indexed_channels":
         conn = get_connection()

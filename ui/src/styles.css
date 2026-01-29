@@ -25,6 +25,52 @@ body {
   overflow: hidden;
 }
 
+.video-container video {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  display: block;
+}
+
+.youtube-fallback {
+  padding: 8px 16px;
+  text-align: center;
+  font-size: var(--font-text-sm-size, 14px);
+}
+
+.youtube-fallback a {
+  color: var(--color-text-secondary, #a3a3a3);
+  text-decoration: none;
+}
+
+.youtube-fallback a:hover {
+  color: var(--color-accent-primary, #3b82f6);
+}
+
+.video-card {
+  aspect-ratio: 16 / 9;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  transition: background 0.2s;
+}
+
+.video-card:hover {
+  background: linear-gradient(135deg, #1f1f3a, #1a2847);
+}
+
+.video-card .play-button {
+  margin-bottom: 12px;
+}
+
+.video-card .watch-text {
+  font-size: var(--font-text-sm-size, 14px);
+  color: var(--color-text-secondary, #a3a3a3);
+}
+
 .thumbnail-wrapper {
   position: relative;
   width: 100%;

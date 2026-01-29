@@ -22,6 +22,7 @@ interface SearchResult {
   start_time: number;
   end_time: number;
   youtube_url: string;
+  clip_url: string;
   score: number;
 }
 
@@ -56,34 +57,40 @@ let currentResult: SearchResult | null = null;
 // Render a search result as video player
 function renderResult(result: SearchResult) {
   currentResult = result;
-  const startSeconds = Math.floor(result.start_time);
-
-  // Show YouTube thumbnail instead of embed (sandbox blocks embeds)
-  const thumbnailUrl = `https://img.youtube.com/vi/${result.video_id}/maxresdefault.jpg`;
   const videoContainer = document.querySelector(".video-container") as HTMLElement;
 
-  // Replace iframe with clickable thumbnail
-  videoContainer.innerHTML = `
-    <div class="thumbnail-wrapper" id="thumbnail-wrapper">
-      <img src="${thumbnailUrl}" alt="${result.video_title}" class="video-thumbnail" />
-      <div class="play-overlay">
-        <svg viewBox="0 0 68 48" width="68" height="48">
-          <path class="play-button-bg" d="M66.52,7.74c-0.78-2.93-2.49-5.41-5.42-6.19C55.79,.13,34,0,34,0S12.21,.13,6.9,1.55 C3.97,2.33,2.27,4.81,1.48,7.74C0.06,13.05,0,24,0,24s0.06,10.95,1.48,16.26c0.78,2.93,2.49,5.41,5.42,6.19 C12.21,47.87,34,48,34,48s21.79-0.13,27.1-1.55c2.93-0.78,4.64-3.26,5.42-6.19C67.94,34.95,68,24,68,24S67.94,13.05,66.52,7.74z" fill="#f00"/>
-          <path d="M 45,24 27,14 27,34" fill="#fff"/>
-        </svg>
+  // Use native video player with clip URL, fallback to YouTube link
+  if (result.clip_url) {
+    videoContainer.innerHTML = `
+      <video id="clip-player" controls autoplay playsinline>
+        <source src="${result.clip_url}" type="video/mp4">
+        Your browser does not support video playback.
+      </video>
+      <div class="youtube-fallback">
+        <a href="${result.youtube_url}" target="_blank">Watch on YouTube</a>
       </div>
-    </div>
-  `;
-
-  // Add click handler to open YouTube
-  const wrapper = document.getElementById("thumbnail-wrapper");
-  if (wrapper) {
-    wrapper.style.cursor = "pointer";
-    wrapper.onclick = () => {
-      if (currentResult) {
-        window.open(currentResult.youtube_url, "_blank");
-      }
-    };
+    `;
+  } else {
+    // Fallback: YouTube link card
+    videoContainer.innerHTML = `
+      <div class="video-card" id="video-card">
+        <div class="play-button">
+          <svg viewBox="0 0 68 48" width="68" height="48">
+            <path d="M66.52,7.74c-0.78-2.93-2.49-5.41-5.42-6.19C55.79,.13,34,0,34,0S12.21,.13,6.9,1.55 C3.97,2.33,2.27,4.81,1.48,7.74C0.06,13.05,0,24,0,24s0.06,10.95,1.48,16.26c0.78,2.93,2.49,5.41,5.42,6.19 C12.21,47.87,34,48,34,48s21.79-0.13,27.1-1.55c2.93-0.78,4.64-3.26,5.42-6.19C67.94,34.95,68,24,68,24S67.94,13.05,66.52,7.74z" fill="#f00"/>
+            <path d="M 45,24 27,14 27,34" fill="#fff"/>
+          </svg>
+        </div>
+        <div class="watch-text">Click to watch on YouTube</div>
+      </div>
+    `;
+    const card = document.getElementById("video-card");
+    if (card) {
+      card.onclick = () => {
+        if (currentResult) {
+          window.open(currentResult.youtube_url, "_blank");
+        }
+      };
+    }
   }
 
   // Update info

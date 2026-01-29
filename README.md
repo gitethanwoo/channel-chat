@@ -31,6 +31,37 @@ channel-chat list
 channel-chat index-video "VIDEO_ID"
 ```
 
+## MCP Server
+
+Use channel-chat as an MCP server to search transcripts directly from Claude:
+
+```bash
+# Add to your Claude config (~/.claude/claude_desktop_config.json or claude settings)
+claude mcp add channel-chat -- /path/to/channel-chat/.venv/bin/channel-chat-mcp
+```
+
+Or manually add to your MCP config:
+```json
+{
+  "mcpServers": {
+    "channel-chat": {
+      "command": "/path/to/channel-chat/.venv/bin/channel-chat-mcp",
+      "env": {
+        "GOOGLE_API_KEY": "your-key",
+        "ELEVENLABS_API_KEY": "your-key"
+      }
+    }
+  }
+}
+```
+
+Available tools:
+- `search_transcripts` - Semantic search across indexed videos
+- `list_indexed_channels` - Show indexed channels
+- `add_channel` - Index a YouTube channel
+- `index_video` - Index a specific video
+- `get_stats` - Get indexing statistics
+
 ## Tech Stack
 
 - **yt-dlp** - Download video metadata, subtitles, and audio

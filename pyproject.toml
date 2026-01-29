@@ -12,10 +12,12 @@ dependencies = [
     "click>=8.0.0",
     "tiktoken>=0.5.0",
     "rich>=13.0.0",
+    "mcp>=1.0.0",
 ]
 
 [project.scripts]
 channel-chat = "channel_chat.cli:main"
+channel-chat-mcp = "channel_chat.mcp_server:run"
 
 [build-system]
 requires = ["hatchling"]

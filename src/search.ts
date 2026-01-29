@@ -13,6 +13,7 @@ export interface SearchResult {
   start_time: number;
   end_time: number;
   youtube_url: string;
+  clip_url: string;
   score: number;
 }
 
@@ -79,6 +80,7 @@ export async function search(query: string, limit: number = 10): Promise<SearchR
       start_time: row.start_time,
       end_time: row.end_time,
       youtube_url: youtubeUrl,
+      clip_url: '', // Set by MCP server with correct base URL
       score,
     });
   }

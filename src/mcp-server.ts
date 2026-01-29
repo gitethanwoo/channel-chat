@@ -15,6 +15,7 @@ import {
   ReadResourceRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import { createServer, IncomingMessage, ServerResponse } from 'http';
+import { spawn } from 'child_process';
 import { readFileSync, existsSync, mkdtempSync, rmSync } from 'fs';
 import { join, dirname } from 'path';
 import { tmpdir } from 'os';
@@ -33,6 +34,7 @@ import {
   insertChunkEmbedding,
   getVideo,
   getStats,
+  updateVideoPath,
 } from './database.js';
 import {
   getChannelInfo,
@@ -277,6 +279,24 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           properties: {},
         },
       },
+      {
+        name: 'set_video_path',
+        description: 'Set the local file path for a video. Required for clip streaming.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            video_id: {
+              type: 'string',
+              description: 'YouTube video ID',
+            },
+            path: {
+              type: 'string',
+              description: 'Absolute path to the video file',
+            },
+          },
+          required: ['video_id', 'path'],
+        },
+      },
     ],
   };
 });
@@ -298,6 +318,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       const results = await search(query, limit);
       console.log(`[MCP] Search returned ${results.length} results`);
+
+      // Add clip URLs to results
+      const baseUrl = `http://localhost:${PORT}`;
+      for (const r of results) {
+        const duration = Math.ceil(r.end_time - r.start_time) + 5; // Add 5 sec buffer
+        r.clip_url = `${baseUrl}/clip?video_id=${r.video_id}&start=${Math.floor(r.start_time)}&duration=${duration}`;
+      }
 
     if (results.length === 0) {
       return { content: [{ type: 'text', text: 'No results found.' }] };
@@ -322,6 +349,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       output += `- Channel: ${r.channel_name}\n`;
       output += `- Timestamp: ${timestamp}\n`;
       output += `- Link: ${r.youtube_url}\n`;
+      output += `- Clip: ${r.clip_url}\n`;
       output += `- Excerpt: ${text.slice(0, 300)}${text.length > 300 ? '...' : ''}\n\n`;
     }
 
@@ -471,6 +499,29 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     return { content: [{ type: 'text', text: output }] };
   }
 
+  if (name === 'set_video_path') {
+    const videoId = args?.video_id as string;
+    const videoPath = args?.path as string;
+
+    if (!existsSync(videoPath)) {
+      return { content: [{ type: 'text', text: `Error: File not found: ${videoPath}` }] };
+    }
+
+    const db = getConnection();
+    initDb(db);
+
+    const video = getVideo(db, videoId);
+    if (!video) {
+      db.close();
+      return { content: [{ type: 'text', text: `Error: Video ${videoId} not found in database` }] };
+    }
+
+    updateVideoPath(db, videoId, videoPath);
+    db.close();
+
+    return { content: [{ type: 'text', text: `Video path set for ${video.title}: ${videoPath}` }] };
+  }
+
   return { content: [{ type: 'text', text: `Unknown tool: ${name}` }] };
 });
 
@@ -490,6 +541,89 @@ async function startHttpServer() {
     if (req.method === 'OPTIONS') {
       res.writeHead(204);
       res.end();
+      return;
+    }
+
+    // Handle /clip endpoint for video streaming
+    if (req.url?.startsWith('/clip')) {
+      const url = new URL(req.url, `http://localhost:${PORT}`);
+      const videoId = url.searchParams.get('video_id');
+      const start = parseFloat(url.searchParams.get('start') || '0');
+      const duration = parseFloat(url.searchParams.get('duration') || '30');
+
+      if (!videoId) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'video_id is required' }));
+        return;
+      }
+
+      // Get video path from database
+      const db = getConnection();
+      initDb(db);
+      const video = getVideo(db, videoId);
+      db.close();
+
+      if (!video) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Video not found' }));
+        return;
+      }
+
+      if (!video.video_path || !existsSync(video.video_path)) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Video file not found. Set video_path first.' }));
+        return;
+      }
+
+      console.log(`[MCP] Streaming clip: ${videoId} from ${start}s for ${duration}s`);
+
+      res.writeHead(200, {
+        'Content-Type': 'video/mp4',
+        'Transfer-Encoding': 'chunked',
+        'Cache-Control': 'no-cache',
+      });
+
+      const ffmpeg = spawn('ffmpeg', [
+        '-ss', start.toString(),
+        '-i', video.video_path,
+        '-t', duration.toString(),
+        '-vf', 'scale=-2:720',
+        '-c:v', 'libx264',
+        '-preset', 'ultrafast',
+        '-crf', '23',
+        '-c:a', 'aac',
+        '-movflags', '+frag_keyframe+empty_moov+faststart',
+        '-f', 'mp4',
+        '-loglevel', 'error',
+        'pipe:1'
+      ]);
+
+      ffmpeg.stdout.pipe(res);
+
+      ffmpeg.stderr.on('data', (data) => {
+        console.error(`[ffmpeg] ${data}`);
+      });
+
+      ffmpeg.on('error', (err) => {
+        console.error(`[ffmpeg] Error: ${err}`);
+        if (!res.writableEnded) {
+          res.end();
+        }
+      });
+
+      ffmpeg.on('close', (code) => {
+        if (code !== 0) {
+          console.error(`[ffmpeg] Exited with code ${code}`);
+        }
+        if (!res.writableEnded) {
+          res.end();
+        }
+      });
+
+      req.on('close', () => {
+        ffmpeg.kill('SIGKILL');
+      });
+
       return;
     }
 

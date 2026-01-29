@@ -232,9 +232,8 @@ def search_chunks(
         JOIN chunks ON chunks.id = chunks_vec.chunk_id
         JOIN videos ON videos.id = chunks.video_id
         JOIN channels ON channels.id = videos.channel_id
-        WHERE embedding MATCH ?
+        WHERE embedding MATCH ? AND k = ?
         ORDER BY distance
-        LIMIT ?
         """,
         (sqlite_vec.serialize_float32(query_embedding), limit)
     )

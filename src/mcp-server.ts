@@ -320,10 +320,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       console.log(`[MCP] Search returned ${results.length} results`);
 
       // Add clip URLs to results
-      const baseUrl = `http://localhost:${PORT}`;
       for (const r of results) {
         const duration = Math.ceil(r.end_time - r.start_time) + 5; // Add 5 sec buffer
-        r.clip_url = `${baseUrl}/clip?video_id=${r.video_id}&start=${Math.floor(r.start_time)}&duration=${duration}`;
+        r.clip_url = `${BASE_URL}/clip?video_id=${r.video_id}&start=${Math.floor(r.start_time)}&duration=${duration}`;
       }
 
     if (results.length === 0) {
@@ -526,6 +525,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 });
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
+const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
 
 /**
  * Run as HTTP server.

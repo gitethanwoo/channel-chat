@@ -27,6 +27,16 @@ const MCP_PROTOCOL_VERSION = '2024-11-05';
 const SERVER_NAME = 'channel-chat';
 const SERVER_VERSION = '1.0.0';
 
+// UI Resource constants for MCP App
+const PLAYER_RESOURCE_URI = 'ui://channel-chat/player.html';
+const RESOURCE_MIME_TYPE = 'text/html;profile=mcp-app';
+const RESOURCE_META = {
+  csp: {
+    // Allow YouTube embeds (using nocookie domain for privacy/fewer restrictions)
+    frameDomains: ['https://www.youtube-nocookie.com'],
+  },
+};
+
 // JSON-RPC types
 interface JsonRpcRequest {
   jsonrpc: '2.0';
@@ -64,6 +74,11 @@ const MCP_TOOLS = [
         },
       },
       required: ['query'],
+    },
+    _meta: {
+      ui: {
+        resourceUri: PLAYER_RESOURCE_URI,
+      },
     },
   },
   {
@@ -528,6 +543,7 @@ function handleMcpInitialize(id: string | number | null): JsonRpcResponse {
     },
     capabilities: {
       tools: {},
+      resources: {},
     },
   });
 }
@@ -539,6 +555,50 @@ function handleMcpToolsList(id: string | number | null): JsonRpcResponse {
   return jsonRpcSuccess(id, {
     tools: MCP_TOOLS,
   });
+}
+
+/**
+ * Handle MCP resources/list request
+ */
+function handleMcpResourcesList(id: string | number | null): JsonRpcResponse {
+  return jsonRpcSuccess(id, {
+    resources: [
+      {
+        uri: PLAYER_RESOURCE_URI,
+        name: 'Video Player',
+        description: 'Interactive video player for search results',
+        mimeType: RESOURCE_MIME_TYPE,
+        _meta: RESOURCE_META,
+      },
+    ],
+  });
+}
+
+/**
+ * Handle MCP resources/read request
+ */
+function handleMcpResourcesRead(
+  id: string | number | null,
+  params: { uri?: string } | undefined
+): JsonRpcResponse {
+  if (!params?.uri) {
+    return jsonRpcError(id, -32602, 'Invalid params: missing uri');
+  }
+
+  if (params.uri === PLAYER_RESOURCE_URI) {
+    return jsonRpcSuccess(id, {
+      contents: [
+        {
+          uri: PLAYER_RESOURCE_URI,
+          mimeType: RESOURCE_MIME_TYPE,
+          text: UI_HTML,
+          _meta: RESOURCE_META,
+        },
+      ],
+    });
+  }
+
+  return jsonRpcError(id, -32602, `Unknown resource: ${params.uri}`);
 }
 
 /**
@@ -650,6 +710,14 @@ async function handleMCPRequest(request: Request, env: Env): Promise<Response> {
 
     case 'ping':
       response = jsonRpcSuccess(id, {});
+      break;
+
+    case 'resources/list':
+      response = handleMcpResourcesList(id);
+      break;
+
+    case 'resources/read':
+      response = handleMcpResourcesRead(id, params as { uri?: string });
       break;
 
     default:

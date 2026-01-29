@@ -58,8 +58,8 @@ function renderResult(result: SearchResult) {
   const startSeconds = Math.floor(result.start_time);
   const endSeconds = Math.floor(result.end_time);
 
-  // Use embed URL with start parameter and enable JS API
-  const embedUrl = `https://www.youtube.com/embed/${result.video_id}?start=${startSeconds}&end=${endSeconds}&autoplay=1&rel=0&enablejsapi=1`;
+  // Use youtube-nocookie.com for privacy-enhanced embed (fewer restrictions)
+  const embedUrl = `https://www.youtube-nocookie.com/embed/${result.video_id}?start=${startSeconds}&end=${endSeconds}&autoplay=1&rel=0`;
 
   iframeEl.src = embedUrl;
 

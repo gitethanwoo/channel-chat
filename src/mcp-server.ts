@@ -155,8 +155,8 @@ const server = new Server(
 // Resource metadata for sandbox/CSP configuration
 const RESOURCE_META = {
   csp: {
-    // Allow YouTube embeds
-    frameDomains: ['https://www.youtube.com', 'https://youtube.com'],
+    // Allow YouTube embeds (using nocookie domain for privacy/fewer restrictions)
+    frameDomains: ['https://www.youtube-nocookie.com'],
   },
 };
 

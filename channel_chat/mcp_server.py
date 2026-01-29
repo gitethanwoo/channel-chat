@@ -165,6 +165,11 @@ async def list_tools():
                     }
                 },
                 "required": ["query"]
+            },
+            meta={
+                "ui": {
+                    "resourceUri": PLAYER_RESOURCE_URI
+                }
             }
         ),
         Tool(

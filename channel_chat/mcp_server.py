@@ -52,9 +52,14 @@ def _index_single_video(video_id: str, channel_id: str, conn, temp_dir: Path) ->
             segments = parse_subtitles(subtitle_path)
             transcript_source = "subtitles"
         else:
-            audio_path = download_audio(video_id, temp_dir)
-            segments = transcribe_audio(audio_path)
-            transcript_source = "transcription"
+            # Try ElevenLabs transcription if API key is available
+            import os
+            if os.environ.get("ELEVENLABS_API_KEY"):
+                audio_path = download_audio(video_id, temp_dir)
+                segments = transcribe_audio(audio_path)
+                transcript_source = "transcription"
+            else:
+                return False, f"No subtitles for {video_id} (set ELEVENLABS_API_KEY for transcription)"
 
         if not segments:
             return False, f"No transcript data for {video_id}"

@@ -11,9 +11,11 @@ pip install -e .
 ## Environment Variables
 
 ```bash
-export GOOGLE_API_KEY=...      # For Gemini embeddings
-export ELEVENLABS_API_KEY=...  # For transcription (when no subtitles)
+export GOOGLE_API_KEY=...      # Required - for Gemini embeddings
+export ELEVENLABS_API_KEY=...  # Optional - for transcribing videos without subtitles
 ```
+
+Note: Most YouTube videos have subtitles. ElevenLabs is only needed for videos without any captions.
 
 ## Usage
 
@@ -47,13 +49,14 @@ Or manually add to your MCP config:
     "channel-chat": {
       "command": "/path/to/channel-chat/.venv/bin/channel-chat-mcp",
       "env": {
-        "GOOGLE_API_KEY": "your-key",
-        "ELEVENLABS_API_KEY": "your-key"
+        "GOOGLE_API_KEY": "your-key"
       }
     }
   }
 }
 ```
+
+(Add `ELEVENLABS_API_KEY` only if you need to transcribe videos without subtitles)
 
 Available tools:
 - `search_transcripts` - Semantic search across indexed videos

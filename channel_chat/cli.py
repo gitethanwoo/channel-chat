@@ -70,7 +70,12 @@ def _index_video(
             segments = parse_subtitles(subtitle_path)
             transcript_source = "subtitles"
         else:
-            # No subtitles available, download audio and transcribe
+            # No subtitles available - try ElevenLabs if API key is set
+            import os
+            if not os.environ.get("ELEVENLABS_API_KEY"):
+                console.print(f"[yellow]Skipping {video_id}: no subtitles (set ELEVENLABS_API_KEY for transcription)[/yellow]")
+                return False
+
             if progress and task_id:
                 progress.update(task_id, description=f"[cyan]Downloading audio for {video_id}...")
             audio_path = download_audio(video_id, temp_dir)

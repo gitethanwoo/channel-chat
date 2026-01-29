@@ -200,6 +200,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         },
         required: ['query'],
       },
+      _meta: {
+        ui: {
+          resourceUri: PLAYER_RESOURCE_URI,
+        },
+      },
     },
     {
       name: 'list_indexed_channels',

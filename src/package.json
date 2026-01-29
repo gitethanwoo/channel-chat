@@ -6,7 +6,7 @@
   "main": "dist/index.js",
   "bin": {
     "channel-chat": "./dist/cli.js",
-    "channel-chat-mcp": "./dist/mcp-server.js"
+    "channel-chat-mcp": "./bin/channel-chat-mcp"
   },
   "scripts": {
     "build": "tsc",

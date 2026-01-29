@@ -8,7 +8,7 @@ import chalk from 'chalk';
 import ora from 'ora';
 import Table from 'cli-table3';
 import { mkdtempSync, rmSync } from 'fs';
-import { join } from 'path';
+import { join, dirname } from 'path';
 import { tmpdir } from 'os';
 import { spawn } from 'child_process';
 
@@ -403,14 +403,15 @@ program
   .description('Set up the MCP server for Claude Code integration')
   .option('--install', 'Run the install command directly')
   .action((options: { install?: boolean }) => {
-    const mcpPath = process.argv[1].replace('cli.js', 'mcp-server.js');
+    // Use the wrapper script that loads .env automatically
+    const binPath = join(dirname(process.argv[1]), '..', 'bin', 'channel-chat-mcp');
 
-    const cmd = `claude mcp add channel-chat -- node ${mcpPath}`;
+    const cmd = `claude mcp add channel-chat -- node ${binPath}`;
 
     if (options.install) {
       console.log(chalk.cyan(`Running: ${cmd}`));
 
-      const child = spawn('claude', ['mcp', 'add', 'channel-chat', '--', 'node', mcpPath], {
+      const child = spawn('claude', ['mcp', 'add', 'channel-chat', '--', 'node', binPath], {
         stdio: 'inherit',
         shell: true,
       });
@@ -429,7 +430,7 @@ program
       console.log('');
       console.log(`Or run ${chalk.cyan('channel-chat mcp --install')} to do it automatically.`);
       console.log('');
-      console.log(chalk.dim('Note: Set GOOGLE_API_KEY in your environment for embeddings.'));
+      console.log(chalk.dim('The server auto-loads .env from the project root.'));
     }
   });
 

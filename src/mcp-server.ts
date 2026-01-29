@@ -167,20 +167,24 @@ const RESOURCE_META = {
   },
 };
 
-server.setRequestHandler(ListResourcesRequestSchema, async () => ({
-  resources: [
-    {
-      uri: PLAYER_RESOURCE_URI,
-      name: 'Video Player',
-      description: 'Interactive video player for search results',
-      mimeType: RESOURCE_MIME_TYPE,
-      _meta: RESOURCE_META,
-    },
-  ],
-}));
+server.setRequestHandler(ListResourcesRequestSchema, async () => {
+  console.log('[MCP] List resources requested');
+  return {
+    resources: [
+      {
+        uri: PLAYER_RESOURCE_URI,
+        name: 'Video Player',
+        description: 'Interactive video player for search results',
+        mimeType: RESOURCE_MIME_TYPE,
+        _meta: RESOURCE_META,
+      },
+    ],
+  };
+});
 
 // Read resource
 server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+  console.log(`[MCP] Resource read: ${request.params.uri}`);
   if (request.params.uri === PLAYER_RESOURCE_URI) {
     return {
       contents: [
@@ -197,82 +201,85 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
 });
 
 // List tools
-server.setRequestHandler(ListToolsRequestSchema, async () => ({
-  tools: [
-    {
-      name: 'search_transcripts',
-      description: 'Search across all indexed YouTube video transcripts using semantic search. Returns relevant clips with timestamps and YouTube links.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          query: {
-            type: 'string',
-            description: 'The search query - can be a question or topic',
+server.setRequestHandler(ListToolsRequestSchema, async () => {
+  console.log('[MCP] List tools requested');
+  return {
+    tools: [
+      {
+        name: 'search_transcripts',
+        description: 'Search across all indexed YouTube video transcripts using semantic search. Returns relevant clips with timestamps and YouTube links.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            query: {
+              type: 'string',
+              description: 'The search query - can be a question or topic',
+            },
+            limit: {
+              type: 'integer',
+              description: 'Maximum number of results (default: 5)',
+              default: 5,
+            },
           },
-          limit: {
-            type: 'integer',
-            description: 'Maximum number of results (default: 5)',
-            default: 5,
+          required: ['query'],
+        },
+        _meta: {
+          ui: {
+            resourceUri: PLAYER_RESOURCE_URI,
           },
         },
-        required: ['query'],
       },
-      _meta: {
-        ui: {
-          resourceUri: PLAYER_RESOURCE_URI,
+      {
+        name: 'list_indexed_channels',
+        description: 'List all YouTube channels that have been indexed for searching.',
+        inputSchema: {
+          type: 'object',
+          properties: {},
         },
       },
-    },
-    {
-      name: 'list_indexed_channels',
-      description: 'List all YouTube channels that have been indexed for searching.',
-      inputSchema: {
-        type: 'object',
-        properties: {},
-      },
-    },
-    {
-      name: 'add_channel',
-      description: 'Add a YouTube channel and index all its videos for searching. This may take a while for large channels.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          url: {
-            type: 'string',
-            description: 'YouTube channel URL (e.g., https://youtube.com/@channelname)',
+      {
+        name: 'add_channel',
+        description: 'Add a YouTube channel and index all its videos for searching. This may take a while for large channels.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            url: {
+              type: 'string',
+              description: 'YouTube channel URL (e.g., https://youtube.com/@channelname)',
+            },
+            max_videos: {
+              type: 'integer',
+              description: 'Maximum number of videos to index (default: all)',
+            },
           },
-          max_videos: {
-            type: 'integer',
-            description: 'Maximum number of videos to index (default: all)',
-          },
+          required: ['url'],
         },
-        required: ['url'],
       },
-    },
-    {
-      name: 'index_video',
-      description: 'Index a specific YouTube video for searching.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          video_id: {
-            type: 'string',
-            description: 'YouTube video ID (e.g., dQw4w9WgXcQ)',
+      {
+        name: 'index_video',
+        description: 'Index a specific YouTube video for searching.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            video_id: {
+              type: 'string',
+              description: 'YouTube video ID (e.g., dQw4w9WgXcQ)',
+            },
           },
+          required: ['video_id'],
         },
-        required: ['video_id'],
       },
-    },
-    {
-      name: 'get_stats',
-      description: 'Get statistics about indexed content.',
-      inputSchema: {
-        type: 'object',
-        properties: {},
+      {
+        name: 'get_stats',
+        description: 'Get statistics about indexed content.',
+        inputSchema: {
+          type: 'object',
+          properties: {},
+        },
       },
-    },
-  ],
-}));
+    ],
+  };
+});
 
 // Handle tool calls
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
@@ -486,10 +493,10 @@ async function startHttpServer() {
       return;
     }
 
-    // Only handle /mcp endpoint
-    if (req.url !== '/mcp') {
+    // Handle both / and /mcp endpoints
+    if (req.url !== '/mcp' && req.url !== '/') {
       res.writeHead(404, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Not found. Use /mcp endpoint.' }));
+      res.end(JSON.stringify({ error: 'Not found' }));
       return;
     }
 

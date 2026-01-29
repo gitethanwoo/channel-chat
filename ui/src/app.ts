@@ -85,28 +85,22 @@ async function renderResult(result: SearchResult) {
   `;
   const clipPlayer = document.getElementById("clip-player") as HTMLVideoElement;
 
-  // Use Cloudflare video URL if available, otherwise fall back to MCP clip resource
-  if (result.cloudflare_video_url) {
-    // Cloudflare R2 video: Use direct URL with timestamp seeking
-    clipPlayer.src = result.cloudflare_video_url;
+  // Always use MCP resources/read for video - direct HTTP URLs are blocked by sandbox CSP
+  const dataUri = await loadClip(result.clip_resource_uri);
+  clipPlayer.src = dataUri;
 
-    // Seek to start time when metadata is loaded
-    clipPlayer.addEventListener("loadedmetadata", () => {
-      clipPlayer.currentTime = result.start_time;
-    }, { once: true });
+  // Seek to start time when metadata is loaded
+  clipPlayer.addEventListener("loadedmetadata", () => {
+    clipPlayer.currentTime = result.start_time;
+  }, { once: true });
 
-    // Optional: Pause at end_time (for clip-like behavior)
-    const endTime = result.end_time;
-    clipPlayer.addEventListener("timeupdate", () => {
-      if (clipPlayer.currentTime >= endTime) {
-        clipPlayer.pause();
-      }
-    });
-  } else {
-    // Local MCP: Load clip as base64 data URI
-    const dataUri = await loadClip(result.clip_resource_uri);
-    clipPlayer.src = dataUri;
-  }
+  // Optional: Pause at end_time (for clip-like behavior)
+  const endTime = result.end_time;
+  clipPlayer.addEventListener("timeupdate", () => {
+    if (clipPlayer.currentTime >= endTime) {
+      clipPlayer.pause();
+    }
+  });
 
   // Update info
   titleEl.textContent = result.video_title;

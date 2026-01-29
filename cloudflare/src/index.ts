@@ -41,6 +41,21 @@ const RESOURCE_META = {
   },
 };
 
+// Video resource URI prefix
+const VIDEO_URI_PREFIX = 'video://clip/';
+
+/**
+ * Convert ArrayBuffer to base64 string (Cloudflare Workers compatible)
+ */
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
 // JSON-RPC types
 interface JsonRpcRequest {
   jsonrpc: '2.0';
@@ -575,21 +590,69 @@ function handleMcpResourcesList(id: string | number | null): JsonRpcResponse {
         mimeType: RESOURCE_MIME_TYPE,
         _meta: RESOURCE_META,
       },
+      {
+        uriTemplate: 'video://clip/{videoId}?start={start}&duration={duration}',
+        name: 'Video Clip',
+        description: 'Video clip resource. Returns full video as base64 blob (start/duration used for UI seeking).',
+        mimeType: 'video/mp4',
+      },
     ],
   });
 }
 
 /**
+ * Parse video URI to extract videoId, start, and duration
+ * Format: video://clip/{videoId}?start=X&duration=Y
+ */
+function parseVideoUri(uri: string): { videoId: string; start: number; duration: number } | null {
+  if (!uri.startsWith(VIDEO_URI_PREFIX)) {
+    return null;
+  }
+
+  try {
+    // Extract the part after 'video://clip/'
+    const pathAndQuery = uri.slice(VIDEO_URI_PREFIX.length);
+    const [videoId, queryString] = pathAndQuery.split('?');
+
+    if (!videoId) {
+      return null;
+    }
+
+    let start = 0;
+    let duration = 60;
+
+    if (queryString) {
+      const params = new URLSearchParams(queryString);
+      const startParam = params.get('start');
+      const durationParam = params.get('duration');
+
+      if (startParam) {
+        start = parseFloat(startParam);
+      }
+      if (durationParam) {
+        duration = parseFloat(durationParam);
+      }
+    }
+
+    return { videoId, start, duration };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Handle MCP resources/read request
  */
-function handleMcpResourcesRead(
+async function handleMcpResourcesRead(
   id: string | number | null,
-  params: { uri?: string } | undefined
-): JsonRpcResponse {
+  params: { uri?: string } | undefined,
+  env: Env
+): Promise<JsonRpcResponse> {
   if (!params?.uri) {
     return jsonRpcError(id, -32602, 'Invalid params: missing uri');
   }
 
+  // Handle UI resource
   if (params.uri === PLAYER_RESOURCE_URI) {
     return jsonRpcSuccess(id, {
       contents: [
@@ -601,6 +664,54 @@ function handleMcpResourcesRead(
         },
       ],
     });
+  }
+
+  // Handle video resource
+  const videoParams = parseVideoUri(params.uri);
+  if (videoParams) {
+    try {
+      // Look up video in D1 to get r2_video_key
+      const video = await getVideo(env.DB, videoParams.videoId);
+
+      if (!video) {
+        return jsonRpcError(id, -32602, `Video not found: ${videoParams.videoId}`);
+      }
+
+      if (!video.r2_video_key) {
+        return jsonRpcError(id, -32602, `Video file not available for: ${videoParams.videoId}`);
+      }
+
+      // Fetch video from R2
+      const r2Object = await env.R2.get(video.r2_video_key);
+
+      if (!r2Object) {
+        return jsonRpcError(id, -32602, `Video file not found in storage: ${video.r2_video_key}`);
+      }
+
+      // Convert to base64
+      const arrayBuffer = await r2Object.arrayBuffer();
+      const base64 = arrayBufferToBase64(arrayBuffer);
+
+      // Return as blob with mimeType
+      // Note: start/duration params are ignored since we can't clip without FFmpeg
+      // The UI can seek to the start time after loading the full video
+      return jsonRpcSuccess(id, {
+        contents: [
+          {
+            uri: params.uri,
+            mimeType: 'video/mp4',
+            blob: base64,
+          },
+        ],
+      });
+    } catch (error) {
+      console.error('Error fetching video resource:', error);
+      return jsonRpcError(
+        id,
+        -32603,
+        error instanceof Error ? error.message : 'Failed to fetch video resource'
+      );
+    }
   }
 
   return jsonRpcError(id, -32602, `Unknown resource: ${params.uri}`);
@@ -722,7 +833,7 @@ async function handleMCPRequest(request: Request, env: Env): Promise<Response> {
       break;
 
     case 'resources/read':
-      response = handleMcpResourcesRead(id, params as { uri?: string });
+      response = await handleMcpResourcesRead(id, params as { uri?: string }, env);
       break;
 
     default:

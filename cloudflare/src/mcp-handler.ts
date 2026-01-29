@@ -39,6 +39,7 @@ function secondsToYoutubeTime(seconds: number): number {
 interface FormattedSearchResult extends SearchResult {
   youtube_url: string;
   clip_resource_uri: string;
+  cloudflare_video_url?: string;
 }
 
 /**
@@ -47,12 +48,14 @@ interface FormattedSearchResult extends SearchResult {
  * @param env - Cloudflare Worker environment bindings
  * @param query - Search query string
  * @param limit - Maximum number of results (default: 5)
+ * @param baseUrl - Base URL for generating cloudflare_video_url (optional)
  * @returns MCP tool response with text and structuredContent
  */
 export async function searchTranscripts(
   env: Env,
   query: string,
-  limit: number = 5
+  limit: number = 5,
+  baseUrl?: string
 ): Promise<{ content: Array<{ type: string; text: string }>; structuredContent: { query: string; results: FormattedSearchResult[] } }> {
   // Generate embedding for the query using Workers AI
   const queryEmbedding = await generateEmbedding(env.AI, query);
@@ -95,6 +98,11 @@ export async function searchTranscripts(
     const clipStart = Math.floor(startTime);
     const clipResourceUri = `${CLIP_RESOURCE_PREFIX}${chunk.video_id}?start=${clipStart}&duration=${DEFAULT_CLIP_DURATION}`;
 
+    // Build Cloudflare video URL if r2_video_key is available
+    const cloudflareVideoUrl = chunk.r2_video_key && baseUrl
+      ? `${baseUrl}/video/${chunk.video_id}`
+      : undefined;
+
     results.push({
       chunk_id: chunk.id,
       score,
@@ -107,6 +115,7 @@ export async function searchTranscripts(
       channel_name: chunk.channel_name,
       youtube_url: youtubeUrl,
       clip_resource_uri: clipResourceUri,
+      cloudflare_video_url: cloudflareVideoUrl,
     });
   }
 
@@ -133,6 +142,9 @@ export async function searchTranscripts(
     output += `- Timestamp: ${timestamp}\n`;
     output += `- Link: ${r.youtube_url}\n`;
     output += `- Clip Resource: ${r.clip_resource_uri}\n`;
+    if (r.cloudflare_video_url) {
+      output += `- Video URL: ${r.cloudflare_video_url}\n`;
+    }
     output += `- Excerpt: ${text.slice(0, 300)}${text.length > 300 ? '...' : ''}\n\n`;
   }
 

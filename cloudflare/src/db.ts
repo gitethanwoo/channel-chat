@@ -162,7 +162,7 @@ export async function getChunksByVectorizeIds(
   db: D1Database,
   vectorizeIds: string[]
 ): Promise<
-  (ChunkRow & { video_title: string; channel_name: string; channel_id: string })[]
+  (ChunkRow & { video_title: string; channel_name: string; channel_id: string; r2_video_key: string | null })[]
 > {
   if (vectorizeIds.length === 0) {
     return [];
@@ -182,6 +182,7 @@ export async function getChunksByVectorizeIds(
          chunks.vectorize_id,
          videos.title AS video_title,
          videos.channel_id,
+         videos.r2_video_key,
          channels.name AS channel_name
        FROM chunks
        JOIN videos ON videos.id = chunks.video_id
@@ -190,7 +191,7 @@ export async function getChunksByVectorizeIds(
     )
     .bind(...vectorizeIds)
     .all<
-      ChunkRow & { video_title: string; channel_name: string; channel_id: string }
+      ChunkRow & { video_title: string; channel_name: string; channel_id: string; r2_video_key: string | null }
     >();
 
   return result.results;

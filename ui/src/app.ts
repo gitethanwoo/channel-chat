@@ -24,6 +24,7 @@ interface SearchResult {
   end_time: number;
   youtube_url: string;
   clip_resource_uri: string;
+  cloudflare_video_url?: string;
   score: number;
 }
 
@@ -76,13 +77,36 @@ async function renderResult(result: SearchResult) {
   const videoContainer = document.getElementById("thumbnail-wrapper") as HTMLElement;
 
   videoContainer.innerHTML = `<div class="loading"></div>`;
-  const dataUri = await loadClip(result.clip_resource_uri);
+  fallbackEl.innerHTML = `<a href="${result.youtube_url}" target="_blank">Watch on YouTube</a>`;
+
+  // Create video element
   videoContainer.innerHTML = `
     <video id="clip-player" controls autoplay playsinline></video>
   `;
-  fallbackEl.innerHTML = `<a href="${result.youtube_url}" target="_blank">Watch on YouTube</a>`;
   const clipPlayer = document.getElementById("clip-player") as HTMLVideoElement;
-  clipPlayer.src = dataUri;
+
+  // Use Cloudflare video URL if available, otherwise fall back to MCP clip resource
+  if (result.cloudflare_video_url) {
+    // Cloudflare R2 video: Use direct URL with timestamp seeking
+    clipPlayer.src = result.cloudflare_video_url;
+
+    // Seek to start time when metadata is loaded
+    clipPlayer.addEventListener("loadedmetadata", () => {
+      clipPlayer.currentTime = result.start_time;
+    }, { once: true });
+
+    // Optional: Pause at end_time (for clip-like behavior)
+    const endTime = result.end_time;
+    clipPlayer.addEventListener("timeupdate", () => {
+      if (clipPlayer.currentTime >= endTime) {
+        clipPlayer.pause();
+      }
+    });
+  } else {
+    // Local MCP: Load clip as base64 data URI
+    const dataUri = await loadClip(result.clip_resource_uri);
+    clipPlayer.src = dataUri;
+  }
 
   // Update info
   titleEl.textContent = result.video_title;

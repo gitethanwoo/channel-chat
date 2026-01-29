@@ -1,0 +1,37 @@
+# Cloudflare Worker configuration for channel-chat MCP server
+name = "channel-chat"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+
+# Required for streaming responses
+compatibility_flags = ["nodejs_compat"]
+
+# D1 Database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "channel-chat"
+database_id = "" # Set after creating database with `wrangler d1 create channel-chat`
+
+# Vectorize index binding
+[[vectorize]]
+binding = "VECTORIZE"
+index_name = "channel-chat-embeddings"
+
+# R2 bucket binding
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "channel-chat-media"
+
+# Workers AI binding (automatic, no API key needed)
+[ai]
+binding = "AI"
+
+# Environment variables
+[vars]
+ENVIRONMENT = "production"
+
+# Development overrides
+[env.dev]
+name = "channel-chat-dev"
+[env.dev.vars]
+ENVIRONMENT = "development"

@@ -1,16 +1,19 @@
 #!/usr/bin/env node
 /**
  * MCP server for channel-chat - search YouTube transcripts from Claude.
+ * Supports both HTTP and stdio transports.
  */
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
   ListResourcesRequestSchema,
   ReadResourceRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
+import { createServer, IncomingMessage, ServerResponse } from 'http';
 import { readFileSync, existsSync, mkdtempSync, rmSync } from 'fs';
 import { join, dirname } from 'path';
 import { tmpdir } from 'os';
@@ -452,12 +455,80 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   return { content: [{ type: 'text', text: `Unknown tool: ${name}` }] };
 });
 
+const PORT = parseInt(process.env.PORT || '3000', 10);
+
+/**
+ * Run as HTTP server.
+ */
+async function startHttpServer() {
+  const httpServer = createServer(async (req: IncomingMessage, res: ServerResponse) => {
+    // CORS headers
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, mcp-session-id, mcp-protocol-version');
+    res.setHeader('Access-Control-Expose-Headers', 'mcp-session-id');
+
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204);
+      res.end();
+      return;
+    }
+
+    // Only handle /mcp endpoint
+    if (req.url !== '/mcp') {
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Not found. Use /mcp endpoint.' }));
+      return;
+    }
+
+    // Create transport for this request
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: undefined, // Stateless mode
+    });
+
+    // Connect server to transport
+    await server.connect(transport);
+
+    // Parse body for POST requests
+    if (req.method === 'POST') {
+      let body = '';
+      req.on('data', chunk => { body += chunk; });
+      req.on('end', async () => {
+        try {
+          const parsedBody = JSON.parse(body);
+          await transport.handleRequest(req, res, parsedBody);
+        } catch (e) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Invalid JSON' }));
+        }
+      });
+    } else {
+      await transport.handleRequest(req, res);
+    }
+  });
+
+  httpServer.listen(PORT, () => {
+    console.log(`MCP HTTP server listening on http://localhost:${PORT}/mcp`);
+  });
+}
+
+/**
+ * Run as stdio server.
+ */
+async function startStdioServer() {
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+}
+
 /**
  * Run the MCP server.
  */
 async function main() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
+  if (process.argv.includes('--stdio')) {
+    await startStdioServer();
+  } else {
+    await startHttpServer();
+  }
 }
 
 main().catch(console.error);

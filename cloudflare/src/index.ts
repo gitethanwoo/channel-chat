@@ -19,8 +19,72 @@ import {
   upsertVectors,
   deleteVectors,
 } from './vectorize';
-import { searchTranscripts } from './mcp-handler';
+import { searchTranscripts, listIndexedChannels, getStats as getMcpStats } from './mcp-handler';
 import { UI_HTML } from './ui-html';
+
+// MCP Protocol constants
+const MCP_PROTOCOL_VERSION = '2024-11-05';
+const SERVER_NAME = 'channel-chat';
+const SERVER_VERSION = '1.0.0';
+
+// JSON-RPC types
+interface JsonRpcRequest {
+  jsonrpc: '2.0';
+  id?: string | number | null;
+  method: string;
+  params?: Record<string, unknown>;
+}
+
+interface JsonRpcResponse {
+  jsonrpc: '2.0';
+  id: string | number | null;
+  result?: unknown;
+  error?: {
+    code: number;
+    message: string;
+    data?: unknown;
+  };
+}
+
+// MCP Tool definitions
+const MCP_TOOLS = [
+  {
+    name: 'search_transcripts',
+    description: 'Search indexed YouTube video transcripts using semantic similarity. Returns relevant transcript excerpts with timestamps and links.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: {
+          type: 'string',
+          description: 'The search query to find relevant transcript segments',
+        },
+        limit: {
+          type: 'number',
+          description: 'Maximum number of results to return (default: 5, max: 20)',
+        },
+      },
+      required: ['query'],
+    },
+  },
+  {
+    name: 'list_indexed_channels',
+    description: 'List all YouTube channels that have been indexed for transcript search.',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: 'get_stats',
+    description: 'Get statistics about the indexed content including channel count, video count, and transcript chunk count.',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+      required: [],
+    },
+  },
+];
 
 // CORS headers for all responses
 const corsHeaders = {
@@ -431,14 +495,168 @@ function handleUIRequest(): Response {
 }
 
 /**
- * Handle MCP protocol requests (placeholder)
+ * Build a JSON-RPC success response
  */
-function handleMCPRequest(): Response {
-  // TODO: Integrate workers-mcp package for full MCP support
-  return jsonResponse(
-    { error: 'MCP protocol not yet implemented' },
-    501
-  );
+function jsonRpcSuccess(id: string | number | null, result: unknown): JsonRpcResponse {
+  return {
+    jsonrpc: '2.0',
+    id,
+    result,
+  };
+}
+
+/**
+ * Build a JSON-RPC error response
+ */
+function jsonRpcError(id: string | number | null, code: number, message: string, data?: unknown): JsonRpcResponse {
+  return {
+    jsonrpc: '2.0',
+    id,
+    error: { code, message, data },
+  };
+}
+
+/**
+ * Handle MCP initialize request
+ */
+function handleMcpInitialize(id: string | number | null): JsonRpcResponse {
+  return jsonRpcSuccess(id, {
+    protocolVersion: MCP_PROTOCOL_VERSION,
+    serverInfo: {
+      name: SERVER_NAME,
+      version: SERVER_VERSION,
+    },
+    capabilities: {
+      tools: {},
+    },
+  });
+}
+
+/**
+ * Handle MCP tools/list request
+ */
+function handleMcpToolsList(id: string | number | null): JsonRpcResponse {
+  return jsonRpcSuccess(id, {
+    tools: MCP_TOOLS,
+  });
+}
+
+/**
+ * Handle MCP tools/call request
+ */
+async function handleMcpToolsCall(
+  id: string | number | null,
+  params: { name?: string; arguments?: Record<string, unknown> } | undefined,
+  env: Env,
+  baseUrl: string
+): Promise<JsonRpcResponse> {
+  if (!params?.name) {
+    return jsonRpcError(id, -32602, 'Invalid params: missing tool name');
+  }
+
+  const toolName = params.name;
+  const toolArgs = params.arguments ?? {};
+
+  try {
+    switch (toolName) {
+      case 'search_transcripts': {
+        const query = toolArgs.query;
+        if (typeof query !== 'string' || query.length === 0) {
+          return jsonRpcError(id, -32602, 'Invalid params: query must be a non-empty string');
+        }
+        const limit = typeof toolArgs.limit === 'number' ? Math.min(toolArgs.limit, 20) : 5;
+        const result = await searchTranscripts(env, query, limit, baseUrl);
+        return jsonRpcSuccess(id, result);
+      }
+
+      case 'list_indexed_channels': {
+        const result = await listIndexedChannels(env);
+        return jsonRpcSuccess(id, result);
+      }
+
+      case 'get_stats': {
+        const result = await getMcpStats(env);
+        return jsonRpcSuccess(id, result);
+      }
+
+      default:
+        return jsonRpcError(id, -32602, `Unknown tool: ${toolName}`);
+    }
+  } catch (error) {
+    console.error(`Tool execution error (${toolName}):`, error);
+    return jsonRpcError(
+      id,
+      -32603,
+      error instanceof Error ? error.message : 'Internal error during tool execution'
+    );
+  }
+}
+
+/**
+ * Handle MCP protocol requests via JSON-RPC
+ */
+async function handleMCPRequest(request: Request, env: Env): Promise<Response> {
+  let body: JsonRpcRequest;
+
+  try {
+    body = await request.json() as JsonRpcRequest;
+  } catch {
+    return jsonResponse(jsonRpcError(null, -32700, 'Parse error: invalid JSON'));
+  }
+
+  // Validate JSON-RPC structure
+  if (body.jsonrpc !== '2.0') {
+    return jsonResponse(jsonRpcError(body.id ?? null, -32600, 'Invalid Request: missing or invalid jsonrpc version'));
+  }
+
+  if (typeof body.method !== 'string') {
+    return jsonResponse(jsonRpcError(body.id ?? null, -32600, 'Invalid Request: missing method'));
+  }
+
+  const id = body.id ?? null;
+  const method = body.method;
+  const params = body.params as Record<string, unknown> | undefined;
+
+  // Get base URL for generating video URLs
+  const url = new URL(request.url);
+  const baseUrl = `${url.protocol}//${url.host}`;
+
+  // Route to appropriate handler based on method
+  let response: JsonRpcResponse;
+
+  switch (method) {
+    case 'initialize':
+      response = handleMcpInitialize(id);
+      break;
+
+    case 'notifications/initialized':
+      // Client acknowledgment notification - no response needed for notifications
+      // But if id is provided, we should respond
+      if (id !== null) {
+        response = jsonRpcSuccess(id, {});
+      } else {
+        // Notifications don't get responses
+        return jsonResponse({});
+      }
+      break;
+
+    case 'tools/list':
+      response = handleMcpToolsList(id);
+      break;
+
+    case 'tools/call':
+      response = await handleMcpToolsCall(id, params as { name?: string; arguments?: Record<string, unknown> }, env, baseUrl);
+      break;
+
+    case 'ping':
+      response = jsonRpcSuccess(id, {});
+      break;
+
+    default:
+      response = jsonRpcError(id, -32601, `Method not found: ${method}`);
+  }
+
+  return jsonResponse(response);
 }
 
 /**
@@ -458,7 +676,7 @@ export default {
     try {
       // MCP protocol requests
       if ((path === '/mcp' || path === '/') && method === 'POST') {
-        return handleMCPRequest();
+        return await handleMCPRequest(request, env);
       }
 
       // Indexing API (requires API key authentication)

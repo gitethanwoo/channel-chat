@@ -152,14 +152,10 @@ export async function parseVtt(filePath: string): Promise<Segment[]> {
             i--;
             break;
           }
-          // Only keep lines with inline timestamps (new content)
-          const hasInlineTimestamps = textLine.includes('<c>') || /\d{2}:\d{2}/.test(textLine);
-          if (hasInlineTimestamps || textLines.length === 0) {
-            // Remove VTT formatting tags
-            let cleanLine = textLine.replace(/<[^>]+>/g, '');
-            if (hasInlineTimestamps) {
-              textLines.push(cleanLine.trim());
-            }
+          // Remove VTT formatting tags (like <c>, <00:00:00.000>, etc.)
+          const cleanLine = textLine.replace(/<[^>]+>/g, '').trim();
+          if (cleanLine) {
+            textLines.push(cleanLine);
           }
           i++;
         }

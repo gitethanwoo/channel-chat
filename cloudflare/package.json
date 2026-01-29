@@ -12,7 +12,8 @@
     "db:migrate:local": "wrangler d1 execute channel-chat --local --file=./schema.sql",
     "vectorize:create": "wrangler vectorize create channel-chat-embeddings --dimensions=768 --metric=cosine",
     "r2:create": "wrangler r2 bucket create channel-chat-media",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:ui": "node scripts/build-ui.cjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",

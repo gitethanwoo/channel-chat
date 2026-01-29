@@ -20,6 +20,7 @@ import {
   deleteVectors,
 } from './vectorize';
 import { searchTranscripts } from './mcp-handler';
+import { UI_HTML } from './ui-html';
 
 // CORS headers for all responses
 const corsHeaders = {
@@ -418,50 +419,11 @@ async function handleChannelsRequest(env: Env): Promise<Response> {
 }
 
 /**
- * Handle UI requests - Serve placeholder HTML
+ * Handle UI requests - Serve the embedded UI
  */
 function handleUIRequest(): Response {
-  const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Channel Chat</title>
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      margin: 0;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-    }
-    .container {
-      text-align: center;
-      padding: 2rem;
-    }
-    h1 {
-      font-size: 3rem;
-      margin-bottom: 1rem;
-    }
-    p {
-      font-size: 1.5rem;
-      opacity: 0.9;
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <h1>Channel Chat</h1>
-    <p>UI - Coming Soon</p>
-  </div>
-</body>
-</html>`;
-
   return withCors(
-    new Response(html, {
+    new Response(UI_HTML, {
       status: 200,
       headers: { 'Content-Type': 'text/html; charset=utf-8' },
     })

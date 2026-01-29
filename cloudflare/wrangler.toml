@@ -10,7 +10,7 @@ compatibility_flags = ["nodejs_compat"]
 [[d1_databases]]
 binding = "DB"
 database_name = "channel-chat"
-database_id = "" # Set after creating database with `wrangler d1 create channel-chat`
+database_id = "05c3727c-1185-4375-84d6-15818aac3212"
 
 # Vectorize index binding
 [[vectorize]]

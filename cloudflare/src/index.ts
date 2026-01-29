@@ -105,7 +105,8 @@ const MCP_TOOLS = [
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept, mcp-session-id, mcp-protocol-version',
+  'Access-Control-Expose-Headers': 'mcp-session-id',
 };
 
 /**
@@ -743,8 +744,14 @@ export default {
 
     try {
       // MCP protocol requests
-      if ((path === '/mcp' || path === '/') && method === 'POST') {
-        return await handleMCPRequest(request, env);
+      if (path === '/mcp' || (path === '/' && method !== 'GET')) {
+        if (method === 'POST') {
+          return await handleMCPRequest(request, env);
+        }
+        if (method === 'GET') {
+          // Streamable HTTP spec: return 405 if server doesn't support SSE streams
+          return withCors(new Response(null, { status: 405, statusText: 'Method Not Allowed' }));
+        }
       }
 
       // Indexing API (requires API key authentication)

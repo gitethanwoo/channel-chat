@@ -22,6 +22,8 @@ export interface CloudflareConfig {
   r2AccessKeyId: string;
   /** R2 Secret Access Key (from API token) */
   r2SecretAccessKey: string;
+  /** Worker API key for authenticated endpoints (optional) */
+  workerApiKey?: string;
 }
 
 /**
@@ -87,6 +89,7 @@ export function getCloudflareConfig(): CloudflareConfig {
   const r2BucketName = process.env.CLOUDFLARE_R2_BUCKET;
   const r2AccessKeyId = process.env.CLOUDFLARE_R2_ACCESS_KEY_ID;
   const r2SecretAccessKey = process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY;
+  const workerApiKey = process.env.CLOUDFLARE_WORKER_API_KEY;
 
   const missing: string[] = [];
 
@@ -109,6 +112,7 @@ export function getCloudflareConfig(): CloudflareConfig {
     r2BucketName: r2BucketName!,
     r2AccessKeyId: r2AccessKeyId!,
     r2SecretAccessKey: r2SecretAccessKey!,
+    workerApiKey,
   };
 }
 
@@ -172,12 +176,19 @@ export async function indexContent(
 ): Promise<IndexResponse> {
   const url = `${config.workerUrl}/api/index`;
 
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  // Add Authorization header if API key is configured
+  if (config.workerApiKey) {
+    headers['Authorization'] = `Bearer ${config.workerApiKey}`;
+  }
+
   try {
     const response = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify(request),
     });
 
@@ -217,6 +228,7 @@ export async function downloadVideo(
 
   return new Promise((resolve, reject) => {
     const ytdlp = spawn('yt-dlp', [
+      '--js-runtimes', 'node',
       '-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
       '--merge-output-format', 'mp4',
       '-o', outputPath,

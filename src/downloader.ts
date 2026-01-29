@@ -323,6 +323,7 @@ export async function downloadAudio(videoId: string, outputDir: string): Promise
   // Check if yt-dlp is available
   return new Promise((resolve, reject) => {
     const ytdlp = spawn('yt-dlp', [
+      '--js-runtimes', 'node',
       '-x',
       '--audio-format', 'mp3',
       '--audio-quality', '192K',

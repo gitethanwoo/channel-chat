@@ -5,10 +5,11 @@ import tempfile
 from pathlib import Path
 
 import click
-from rich.console import Console
+from rich.console import Console, Group
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
 from rich.table import Table
+from rich.text import Text
 
 from .database import (
     get_connection,
@@ -291,9 +292,16 @@ def search_cmd(query: str, limit: int):
         if len(text_preview) > 300:
             text_preview = text_preview[:297] + "..."
 
+        # Use Group to combine table and text in panel
+        content = Group(
+            table,
+            Text(),  # Empty line
+            Text(text_preview, style="italic"),
+        )
+
         console.print(
             Panel(
-                f"{table}\n\n[italic]{text_preview}[/italic]",
+                content,
                 title=f"Result {i}",
                 border_style="blue",
             )

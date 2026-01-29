@@ -1,0 +1,112 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+  background: var(--color-background-primary, #1a1a1a);
+  color: var(--color-text-primary, #e5e5e5);
+  line-height: 1.5;
+}
+
+.video-player {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  max-width: 100%;
+}
+
+.video-container {
+  background: var(--color-background-secondary, #262626);
+  border-radius: var(--border-radius-lg, 12px);
+  overflow: hidden;
+}
+
+#youtube-player {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  display: block;
+}
+
+.video-info {
+  padding: 12px 16px;
+}
+
+.video-info h2 {
+  font-size: var(--font-heading-md-size, 18px);
+  font-weight: var(--font-weight-semibold, 600);
+  margin-bottom: 4px;
+  color: var(--color-text-primary, #e5e5e5);
+}
+
+.channel-name {
+  font-size: var(--font-text-sm-size, 14px);
+  color: var(--color-text-secondary, #a3a3a3);
+}
+
+.timestamp {
+  font-size: var(--font-text-sm-size, 14px);
+  color: var(--color-accent-primary, #3b82f6);
+  margin-left: 12px;
+}
+
+.transcript-panel {
+  background: var(--color-background-secondary, #262626);
+  border-radius: var(--border-radius-lg, 12px);
+  overflow: hidden;
+}
+
+.transcript-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border-primary, #404040);
+  font-size: var(--font-text-sm-size, 14px);
+  font-weight: var(--font-weight-medium, 500);
+  color: var(--color-text-secondary, #a3a3a3);
+}
+
+.score {
+  background: var(--color-accent-primary, #3b82f6);
+  color: white;
+  padding: 2px 8px;
+  border-radius: var(--border-radius-sm, 4px);
+  font-size: var(--font-text-xs-size, 12px);
+}
+
+.transcript-text {
+  padding: 16px;
+  font-size: var(--font-text-md-size, 16px);
+  line-height: 1.7;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.transcript-text .highlight {
+  background: rgba(59, 130, 246, 0.3);
+  padding: 2px 0;
+  border-radius: 2px;
+}
+
+/* Loading state */
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: var(--color-text-secondary, #a3a3a3);
+}
+
+.loading::after {
+  content: "Loading...";
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}

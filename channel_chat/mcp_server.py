@@ -1,13 +1,14 @@
 """MCP server for channel-chat - search YouTube transcripts from Claude."""
 
 import asyncio
+import json
 import shutil
 import tempfile
 from pathlib import Path
 
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
-from mcp.types import Tool, TextContent
+from mcp.types import Tool, TextContent, Resource, ResourceContents
 
 from .database import (
     get_connection,
@@ -37,6 +38,23 @@ from .embedder import embed_batch
 from .search import search as do_search, format_timestamp
 
 server = Server("channel-chat")
+
+# UI Resource URI for the video player
+PLAYER_RESOURCE_URI = "ui://channel-chat/player.html"
+RESOURCE_MIME_TYPE = "text/html; charset=utf-8"
+
+# Get the path to the bundled UI HTML
+def _get_ui_html() -> str:
+    """Load the bundled UI HTML."""
+    ui_path = Path(__file__).parent.parent / "ui" / "dist" / "index.html"
+    if ui_path.exists():
+        return ui_path.read_text()
+    # Fallback - simple HTML if build not available
+    return """<!DOCTYPE html>
+<html><body style="font-family: system-ui; padding: 20px; color: #e5e5e5; background: #1a1a1a;">
+<h2>Channel Chat Player</h2>
+<p>UI not built. Run <code>cd ui && npm run build</code></p>
+</body></html>"""
 
 
 def _index_single_video(video_id: str, channel_id: str, conn, temp_dir: Path) -> tuple[bool, str]:
@@ -98,6 +116,32 @@ def _index_single_video(video_id: str, channel_id: str, conn, temp_dir: Path) ->
 
     except Exception as e:
         return False, f"Error: {e}"
+
+
+@server.list_resources()
+async def list_resources():
+    """List available UI resources."""
+    return [
+        Resource(
+            uri=PLAYER_RESOURCE_URI,
+            name="Video Player",
+            description="Interactive video player for search results",
+            mimeType=RESOURCE_MIME_TYPE,
+        )
+    ]
+
+
+@server.read_resource()
+async def read_resource(uri: str):
+    """Read a UI resource."""
+    if uri == PLAYER_RESOURCE_URI:
+        html = _get_ui_html()
+        return ResourceContents(
+            uri=uri,
+            mimeType=RESOURCE_MIME_TYPE,
+            text=html,
+        )
+    raise ValueError(f"Unknown resource: {uri}")
 
 
 @server.list_tools()

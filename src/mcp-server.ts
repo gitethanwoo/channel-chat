@@ -666,9 +666,101 @@ async function startHttpServer() {
 }
 
 /**
- * Run as stdio server.
+ * Start HTTP server for clip streaming only (no MCP).
+ */
+function startClipServer() {
+  const clipServer = createServer((req: IncomingMessage, res: ServerResponse) => {
+    // CORS headers
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204);
+      res.end();
+      return;
+    }
+
+    if (!req.url?.startsWith('/clip')) {
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Not found' }));
+      return;
+    }
+
+    const url = new URL(req.url, `http://localhost:${PORT}`);
+    const videoId = url.searchParams.get('video_id');
+    const start = parseFloat(url.searchParams.get('start') || '0');
+    const duration = parseFloat(url.searchParams.get('duration') || '30');
+
+    if (!videoId) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'video_id is required' }));
+      return;
+    }
+
+    const db = getConnection();
+    initDb(db);
+    const video = getVideo(db, videoId);
+    db.close();
+
+    if (!video) {
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Video not found' }));
+      return;
+    }
+
+    if (!video.video_path || !existsSync(video.video_path)) {
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Video file not found. Set video_path first.' }));
+      return;
+    }
+
+    console.error(`[Clip] Streaming: ${videoId} from ${start}s for ${duration}s`);
+
+    res.writeHead(200, {
+      'Content-Type': 'video/mp4',
+      'Transfer-Encoding': 'chunked',
+      'Cache-Control': 'no-cache',
+    });
+
+    const ffmpeg = spawn('ffmpeg', [
+      '-ss', start.toString(),
+      '-i', video.video_path,
+      '-t', duration.toString(),
+      '-vf', 'scale=-2:720',
+      '-c:v', 'libx264',
+      '-preset', 'ultrafast',
+      '-crf', '23',
+      '-c:a', 'aac',
+      '-movflags', '+frag_keyframe+empty_moov+faststart',
+      '-f', 'mp4',
+      '-loglevel', 'error',
+      'pipe:1'
+    ]);
+
+    ffmpeg.stdout.pipe(res);
+    ffmpeg.stderr.on('data', (data) => console.error(`[ffmpeg] ${data}`));
+    ffmpeg.on('error', (err) => {
+      console.error(`[ffmpeg] Error: ${err}`);
+      if (!res.writableEnded) res.end();
+    });
+    ffmpeg.on('close', (code) => {
+      if (code !== 0) console.error(`[ffmpeg] Exited with code ${code}`);
+      if (!res.writableEnded) res.end();
+    });
+    req.on('close', () => ffmpeg.kill('SIGKILL'));
+  });
+
+  clipServer.listen(PORT, () => {
+    console.error(`[Clip] HTTP server listening on http://localhost:${PORT}/clip`);
+  });
+}
+
+/**
+ * Run as stdio server with clip HTTP server.
  */
 async function startStdioServer() {
+  startClipServer();
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }

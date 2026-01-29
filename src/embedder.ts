@@ -2,13 +2,14 @@
  * Embedder module using Google GenAI for text embeddings.
  */
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 
 // Singleton client instance
-let _client: GoogleGenerativeAI | null = null;
+let _client: GoogleGenAI | null = null;
 
 // Embedding configuration
-const EMBEDDING_MODEL = 'text-embedding-004';
+const EMBEDDING_MODEL = 'gemini-embedding-001';
+const OUTPUT_DIMENSIONALITY = 768;
 const DEFAULT_BATCH_SIZE = 100;
 const BATCH_DELAY = 100; // milliseconds between batches
 const MAX_RETRIES = 3;
@@ -19,9 +20,18 @@ function sleep(ms: number): Promise<void> {
 }
 
 /**
+ * Normalize embedding vector (required for dimensions < 3072).
+ */
+function normalizeEmbedding(embedding: number[]): number[] {
+  const magnitude = Math.sqrt(embedding.reduce((sum, val) => sum + val * val, 0));
+  if (magnitude === 0) return embedding;
+  return embedding.map(val => val / magnitude);
+}
+
+/**
  * Get or create a singleton GenAI client.
  */
-function getClient(): GoogleGenerativeAI {
+function getClient(): GoogleGenAI {
   if (!_client) {
     const apiKey = process.env.GOOGLE_API_KEY;
     if (!apiKey) {
@@ -30,7 +40,7 @@ function getClient(): GoogleGenerativeAI {
         'Please set it with your Google AI API key.'
       );
     }
-    _client = new GoogleGenerativeAI(apiKey);
+    _client = new GoogleGenAI({ apiKey });
   }
   return _client;
 }
@@ -40,12 +50,21 @@ function getClient(): GoogleGenerativeAI {
  */
 export async function embedText(text: string): Promise<number[]> {
   const client = getClient();
-  const model = client.getGenerativeModel({ model: EMBEDDING_MODEL });
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
-      const result = await model.embedContent(text);
-      return result.embedding.values;
+      const response = await client.models.embedContent({
+        model: EMBEDDING_MODEL,
+        contents: text,
+        config: { outputDimensionality: OUTPUT_DIMENSIONALITY },
+      });
+
+      if (!response.embeddings || response.embeddings.length === 0) {
+        throw new Error('No embeddings returned from API');
+      }
+
+      // Normalize since we're using < 3072 dimensions
+      return normalizeEmbedding(response.embeddings[0].values || []);
     } catch (error) {
       const errorStr = String(error).toLowerCase();
       // Retry on rate limit errors
@@ -74,7 +93,6 @@ export async function embedBatch(
   if (texts.length === 0) return [];
 
   const client = getClient();
-  const model = client.getGenerativeModel({ model: EMBEDDING_MODEL });
   const allEmbeddings: number[][] = [];
   const totalBatches = Math.ceil(texts.length / batchSize);
 
@@ -89,12 +107,19 @@ export async function embedBatch(
     // Retry logic for the batch
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       try {
-        const result = await model.batchEmbedContents({
-          requests: batch.map(text => ({ content: { parts: [{ text }], role: 'user' } })),
+        const response = await client.models.embedContent({
+          model: EMBEDDING_MODEL,
+          contents: batch,
+          config: { outputDimensionality: OUTPUT_DIMENSIONALITY },
         });
 
-        for (const embedding of result.embeddings) {
-          allEmbeddings.push(embedding.values);
+        if (!response.embeddings) {
+          throw new Error('No embeddings returned from API');
+        }
+
+        for (const embedding of response.embeddings) {
+          // Normalize since we're using < 3072 dimensions
+          allEmbeddings.push(normalizeEmbedding(embedding.values || []));
         }
 
         break; // Success, exit retry loop

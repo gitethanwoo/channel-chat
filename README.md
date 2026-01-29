@@ -38,8 +38,11 @@ channel-chat index-video "VIDEO_ID"
 Use channel-chat as an MCP server to search transcripts directly from Claude:
 
 ```bash
-# Add to your Claude config (~/.claude/claude_desktop_config.json or claude settings)
-claude mcp add channel-chat -- /path/to/channel-chat/.venv/bin/channel-chat-mcp
+# Easy setup
+channel-chat mcp --install
+
+# Or see the command without running it
+channel-chat mcp
 ```
 
 Or manually add to your MCP config:

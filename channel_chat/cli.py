@@ -459,6 +459,37 @@ def index_video(video_id: str):
         conn.close()
 
 
+@cli.command("mcp")
+@click.option("--install", is_flag=True, help="Run the install command directly")
+def mcp_cmd(install: bool):
+    """Set up the MCP server for Claude Code integration."""
+    import sys
+    import subprocess
+
+    # Find the mcp server executable
+    mcp_path = Path(sys.executable).parent / "channel-chat-mcp"
+
+    if not mcp_path.exists():
+        console.print("[red]Error: channel-chat-mcp not found. Run 'pip install -e .' first.[/red]")
+        return
+
+    # Build the command
+    cmd = f'claude mcp add channel-chat -- {mcp_path}'
+
+    if install:
+        console.print(f"[cyan]Running:[/cyan] {cmd}")
+        result = subprocess.run(cmd, shell=True)
+        if result.returncode == 0:
+            console.print("[green]MCP server installed! Restart Claude Code to use it.[/green]")
+        else:
+            console.print("[red]Installation failed. Try running the command manually.[/red]")
+    else:
+        console.print("[bold]To add channel-chat to Claude Code:[/bold]\n")
+        console.print(f"  {cmd}\n")
+        console.print("Or run [cyan]channel-chat mcp --install[/cyan] to do it automatically.\n")
+        console.print("[dim]Note: Set GOOGLE_API_KEY in your environment for embeddings.[/dim]")
+
+
 def main():
     """Entry point for the CLI."""
     cli()

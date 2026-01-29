@@ -258,7 +258,10 @@ export function insertChunk(
     INSERT INTO chunks (video_id, seq, start_time, end_time, text)
     VALUES (?, ?, ?, ?, ?)
   `).run(videoId, seq, startTime, endTime, text);
-  return Number(result.lastInsertRowid);
+  // lastInsertRowid is a bigint, convert to number for sqlite-vec compatibility
+  return typeof result.lastInsertRowid === 'bigint'
+    ? Number(result.lastInsertRowid)
+    : (result.lastInsertRowid as number);
 }
 
 /**
@@ -269,11 +272,13 @@ export function insertChunkEmbedding(
   chunkId: number,
   embedding: number[]
 ): void {
-  // Convert to Float32Array for sqlite-vec
+  // Convert to Float32Array and then to Buffer for sqlite-vec
   const floatArray = new Float32Array(embedding);
+  const buffer = Buffer.from(floatArray.buffer);
+  // sqlite-vec with better-sqlite3 needs BigInt for integer PK when using blob params
   db.prepare('INSERT INTO chunks_vec (chunk_id, embedding) VALUES (?, ?)').run(
-    chunkId,
-    floatArray
+    BigInt(chunkId),
+    buffer
   );
 }
 
@@ -286,6 +291,7 @@ export function searchChunks(
   limit: number = 10
 ): SearchResult[] {
   const floatArray = new Float32Array(queryEmbedding);
+  const buffer = Buffer.from(floatArray.buffer);
 
   const rows = db.prepare(`
     SELECT
@@ -304,7 +310,7 @@ export function searchChunks(
     JOIN channels ON channels.id = videos.channel_id
     WHERE embedding MATCH ? AND k = ?
     ORDER BY distance
-  `).all(floatArray, limit) as SearchResult[];
+  `).all(buffer, limit) as SearchResult[];
 
   return rows;
 }

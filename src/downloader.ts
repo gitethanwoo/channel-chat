@@ -4,7 +4,7 @@
 
 import { Innertube } from 'youtubei.js';
 import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
+import { join, dirname } from 'path';
 import { existsSync } from 'fs';
 
 // Custom error types
@@ -216,73 +216,98 @@ export async function getVideoInfo(videoId: string): Promise<VideoInfo> {
 }
 
 /**
- * Download subtitles for a video.
+ * Download subtitles for a video using yt-dlp via Python.
  * Returns path to the downloaded subtitle file, or null if no subtitles available.
  */
 export async function downloadSubtitles(videoId: string, outputDir: string): Promise<string | null> {
-  try {
-    const yt = await getInnertube();
-    const info = await yt.getInfo(videoId);
+  const { spawn } = await import('child_process');
+  const { readdir } = await import('fs/promises');
 
-    if (!info) {
-      return null;
-    }
+  await mkdir(outputDir, { recursive: true });
 
-    // Get captions
-    const captions = info.captions;
-    if (!captions || !captions.caption_tracks || captions.caption_tracks.length === 0) {
-      return null;
-    }
+  const pythonScript = `
+import yt_dlp
+import sys
 
-    // Prefer English captions
-    const englishLangs = ['en', 'en-US', 'en-GB', 'a.en']; // a.en for auto-generated
-    let selectedTrack = null;
+video_id = sys.argv[1]
+output_dir = sys.argv[2]
 
-    // First try manual English subtitles
-    for (const lang of englishLangs.slice(0, 3)) {
-      selectedTrack = captions.caption_tracks.find(
-        t => t.language_code === lang && !t.kind?.includes('asr')
-      );
-      if (selectedTrack) break;
-    }
+opts = {
+    'quiet': True,
+    'no_warnings': True,
+    'writesubtitles': True,
+    'writeautomaticsub': False,
+    'subtitleslangs': ['en', 'en-US', 'en-GB'],
+    'subtitlesformat': 'vtt/srt/best',
+    'skip_download': True,
+    'outtmpl': f'{output_dir}/{video_id}.%(ext)s',
+}
 
-    // Fall back to auto-generated English
-    if (!selectedTrack) {
-      selectedTrack = captions.caption_tracks.find(
-        t => t.language_code.startsWith('en') || t.language_code === 'a.en'
-      );
-    }
+video_url = f'https://www.youtube.com/watch?v={video_id}'
 
-    // Fall back to any available track
-    if (!selectedTrack && captions.caption_tracks.length > 0) {
-      selectedTrack = captions.caption_tracks[0];
-    }
+try:
+    with yt_dlp.YoutubeDL(opts) as ydl:
+        info = ydl.extract_info(video_url, download=False)
+        subtitles = info.get('subtitles', {})
+        has_manual = any(lang in subtitles for lang in ['en', 'en-US', 'en-GB'])
 
-    if (!selectedTrack || !selectedTrack.base_url) {
-      return null;
-    }
+        if has_manual:
+            ydl.download([video_url])
+        else:
+            opts['writesubtitles'] = False
+            opts['writeautomaticsub'] = True
+            opts['subtitleslangs'] = ['en', 'en-orig', 'en-US', 'en-GB']
+            with yt_dlp.YoutubeDL(opts) as ydl_auto:
+                auto_info = ydl_auto.extract_info(video_url, download=False)
+                auto_subs = auto_info.get('automatic_captions', {})
+                if any(lang in auto_subs for lang in ['en', 'en-orig', 'en-US', 'en-GB']):
+                    ydl_auto.download([video_url])
+except Exception as e:
+    pass
+`;
 
-    // Ensure output directory exists
-    await mkdir(outputDir, { recursive: true });
+  // Find Python with yt-dlp - use PYTHON_PATH env var or try common locations
+  const pythonFromEnv = process.env.PYTHON_PATH || process.env.CHANNEL_CHAT_PYTHON;
+  const pythonPaths = [
+    ...(pythonFromEnv ? [pythonFromEnv] : []),
+    join(dirname(dirname(process.cwd())), '.venv', 'bin', 'python'),
+    join(dirname(process.cwd()), '.venv', 'bin', 'python'),
+    join(process.cwd(), '.venv', 'bin', 'python'),
+    'python3',
+    'python',
+  ];
 
-    // Fetch the captions (in SRV3/timedtext format by default)
-    // We need to request VTT format
-    const captionUrl = new URL(selectedTrack.base_url);
-    captionUrl.searchParams.set('fmt', 'vtt');
+  return new Promise((resolve) => {
+    const tryPython = (index: number) => {
+      if (index >= pythonPaths.length) {
+        resolve(null);
+        return;
+      }
 
-    const response = await fetch(captionUrl.toString());
-    if (!response.ok) {
-      return null;
-    }
+      const pythonPath = pythonPaths[index];
+      const python = spawn(pythonPath, ['-c', pythonScript, videoId, outputDir], {
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
 
-    const vttContent = await response.text();
-    const outputPath = join(outputDir, `${videoId}.en.vtt`);
-    await writeFile(outputPath, vttContent, 'utf-8');
+      python.on('close', async () => {
+        // Find the subtitle file
+        try {
+          const files = await readdir(outputDir);
+          for (const file of files) {
+            if (file.startsWith(videoId) && (file.endsWith('.vtt') || file.endsWith('.srt'))) {
+              resolve(join(outputDir, file));
+              return;
+            }
+          }
+        } catch {}
+        resolve(null);
+      });
 
-    return outputPath;
-  } catch (error) {
-    throw new DownloaderError(`Failed to download subtitles: ${error}`);
-  }
+      python.on('error', () => tryPython(index + 1));
+    };
+
+    tryPython(0);
+  });
 }
 
 /**

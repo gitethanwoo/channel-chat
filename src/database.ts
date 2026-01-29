@@ -25,6 +25,7 @@ export interface Video {
   published_at: string;
   thumbnail_url: string;
   transcript_source: string;
+  video_path: string | null;
 }
 
 export interface ChunkRow {
@@ -97,7 +98,8 @@ export function initDb(db: Database.Database): void {
       duration INTEGER,
       published_at TIMESTAMP,
       thumbnail_url TEXT,
-      transcript_source TEXT
+      transcript_source TEXT,
+      video_path TEXT
     );
 
     -- Transcript chunks
@@ -114,6 +116,14 @@ export function initDb(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_chunks_video_id ON chunks(video_id);
     CREATE INDEX IF NOT EXISTS idx_videos_channel_id ON videos(channel_id);
   `);
+
+  // Migration: add video_path column if it doesn't exist
+  const videoPathExists = db.prepare(
+    "SELECT 1 FROM pragma_table_info('videos') WHERE name='video_path'"
+  ).get();
+  if (!videoPathExists) {
+    db.exec('ALTER TABLE videos ADD COLUMN video_path TEXT');
+  }
 
   // Create vector table if it doesn't exist
   const tableExists = db.prepare(
@@ -222,6 +232,17 @@ export function listVideos(db: Database.Database, channelId?: string): Video[] {
 export function videoExists(db: Database.Database, videoId: string): boolean {
   const row = db.prepare('SELECT 1 FROM videos WHERE id = ?').get(videoId);
   return row !== undefined;
+}
+
+/**
+ * Update a video's local file path.
+ */
+export function updateVideoPath(
+  db: Database.Database,
+  videoId: string,
+  videoPath: string
+): void {
+  db.prepare('UPDATE videos SET video_path = ? WHERE id = ?').run(videoPath, videoId);
 }
 
 // Chunk operations

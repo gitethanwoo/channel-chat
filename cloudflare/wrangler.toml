@@ -3,6 +3,11 @@ name = "channel-chat"
 main = "src/index.ts"
 compatibility_date = "2024-12-01"
 
+# Custom domain
+routes = [
+  { pattern = "channelmcp.com", custom_domain = true }
+]
+
 # Required for streaming responses
 compatibility_flags = ["nodejs_compat"]
 

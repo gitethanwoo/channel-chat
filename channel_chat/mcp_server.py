@@ -8,7 +8,7 @@ from pathlib import Path
 
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
-from mcp.types import Tool, TextContent, Resource, ResourceContents
+from mcp.types import Tool, TextContent, Resource, ResourceContents, CallToolResult
 
 from .database import (
     get_connection,
@@ -41,7 +41,8 @@ server = Server("channel-chat")
 
 # UI Resource URI for the video player
 PLAYER_RESOURCE_URI = "ui://channel-chat/player.html"
-RESOURCE_MIME_TYPE = "text/html; charset=utf-8"
+# MCP Apps require this specific MIME type
+RESOURCE_MIME_TYPE = "text/html;profile=mcp-app"
 
 # Get the path to the bundled UI HTML
 def _get_ui_html() -> str:
@@ -266,18 +267,11 @@ async def call_tool(name: str, arguments: dict):
             "results": results,
         }
 
-        return [
-            TextContent(
-                type="text",
-                text=json.dumps(structured_results),
-                meta={
-                    "ui": {
-                        "resourceUri": PLAYER_RESOURCE_URI,
-                    }
-                }
-            ),
-            TextContent(type="text", text=output),
-        ]
+        # Return CallToolResult with both text content and structuredContent for UI
+        return CallToolResult(
+            content=[TextContent(type="text", text=output)],
+            structuredContent=structured_results,
+        )
 
     elif name == "list_indexed_channels":
         conn = get_connection()

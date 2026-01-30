@@ -298,6 +298,36 @@ export async function getVideoTranscript(
   }
 
   const channel = await getChannel(env.DB, video.channel_id);
+
+  // Try to fetch granular transcript from R2 first
+  if (video.r2_transcript_key) {
+    try {
+      const r2Object = await env.R2.get(video.r2_transcript_key);
+      if (r2Object) {
+        const transcriptJson = await r2Object.text();
+        const rawSegments = JSON.parse(transcriptJson) as Array<{
+          text: string;
+          start_time: number;
+          end_time: number;
+        }>;
+
+        return {
+          video_id: videoId,
+          video_title: video.title,
+          channel_name: channel?.name ?? 'Unknown Channel',
+          segments: rawSegments.map((seg) => ({
+            start_time: seg.start_time,
+            end_time: seg.end_time,
+            text: seg.text,
+          })),
+        };
+      }
+    } catch (err) {
+      console.error('Error fetching R2 transcript, falling back to chunks:', err);
+    }
+  }
+
+  // Fall back to chunks if no R2 transcript
   const chunks = await getVideoChunks(env.DB, videoId);
 
   return {

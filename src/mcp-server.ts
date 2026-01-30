@@ -331,7 +331,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
     tools: [
       {
         name: 'search_transcripts',
-        description: 'Search across all indexed YouTube video transcripts using semantic search. Returns relevant clips with timestamps and YouTube links.',
+        description: 'Search across all indexed YouTube video transcripts using semantic search. Returns relevant clips with timestamps and YouTube links. Use this to find relevant content, then call show_video to display the best result.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -346,14 +346,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ['query'],
-        },
-        _meta: {
-          ui: {
-            resourceUri: PLAYER_RESOURCE_URI,
-          },
-          // Back-compat for hosts that read the legacy key instead of nested `_meta.ui.resourceUri`.
-          // `@modelcontextprotocol/ext-apps/server`'s `registerAppTool` sets both.
-          'ui/resourceUri': PLAYER_RESOURCE_URI,
         },
       },
       {
@@ -420,6 +412,31 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ['video_id', 'path'],
+        },
+      },
+      {
+        name: 'show_video',
+        description: 'Display a video with its full seekable transcript. Call this after using search_transcripts to show the best matching result to the user.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            video_id: {
+              type: 'string',
+              description: 'YouTube video ID to display',
+            },
+            start_time: {
+              type: 'number',
+              description: 'Start playback at this timestamp (in seconds)',
+              default: 0,
+            },
+          },
+          required: ['video_id'],
+        },
+        _meta: {
+          ui: {
+            resourceUri: PLAYER_RESOURCE_URI,
+          },
+          'ui/resourceUri': PLAYER_RESOURCE_URI,
         },
       },
     ],
@@ -651,6 +668,45 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     db.close();
 
     return { content: [{ type: 'text', text: `Video path set for ${video.title}: ${videoPath}` }] };
+  }
+
+  if (name === 'show_video') {
+    const videoId = args?.video_id as string;
+    const startTime = (args?.start_time as number) || 0;
+
+    const db = getConnection();
+    initDb(db);
+
+    const video = getVideo(db, videoId);
+    if (!video) {
+      db.close();
+      return { content: [{ type: 'text', text: `Error: Video ${videoId} not found` }] };
+    }
+
+    const channel = getChannel(db, video.channel_id);
+    db.close();
+
+    const videoUrl = `https://channelmcp.com/video/${encodeURIComponent(videoId)}`;
+    const transcriptUri = `${TRANSCRIPT_RESOURCE_PREFIX}${videoId}`;
+
+    const structured = {
+      video_id: videoId,
+      video_title: video.title,
+      channel_name: channel?.name ?? 'Unknown Channel',
+      video_url: videoUrl,
+      start_time: startTime,
+      transcript_uri: transcriptUri,
+    };
+
+    const textOutput = `Showing: ${video.title}\nChannel: ${channel?.name ?? 'Unknown'}\nStarting at: ${formatTimestamp(startTime)}`;
+
+    return {
+      content: [
+        { type: 'text', text: JSON.stringify(structured) },
+        { type: 'text', text: textOutput },
+      ],
+      structuredContent: structured,
+    };
   }
 
   return { content: [{ type: 'text', text: `Unknown tool: ${name}` }] };

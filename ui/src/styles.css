@@ -214,9 +214,9 @@ body {
 }
 
 .video-description {
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.6;
-  color: var(--color-text-secondary, #888);
+  color: var(--color-text-secondary, #aaa);
 }
 
 .timestamp {

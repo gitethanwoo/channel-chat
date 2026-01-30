@@ -327,10 +327,8 @@ app.ontoolresult = async (result) => {
     }
 
     if (hasDescription) {
-      // Truncate long descriptions
-      const desc = showVideo.description!;
-      const truncated = desc.length > 300 ? desc.slice(0, 300) + "..." : desc;
-      videoDescriptionEl.textContent = truncated;
+      // Show full description (no truncation)
+      videoDescriptionEl.textContent = showVideo.description!;
       videoDescriptionEl.style.display = "block";
     } else {
       videoDescriptionEl.style.display = "none";

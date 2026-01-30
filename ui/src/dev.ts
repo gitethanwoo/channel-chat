@@ -164,9 +164,7 @@ function init() {
     }
 
     if (hasDescription) {
-      const desc = result.description!;
-      const truncated = desc.length > 300 ? desc.slice(0, 300) + "..." : desc;
-      videoDescriptionEl.textContent = truncated;
+      videoDescriptionEl.textContent = result.description!;
       videoDescriptionEl.style.display = "block";
     } else {
       videoDescriptionEl.style.display = "none";

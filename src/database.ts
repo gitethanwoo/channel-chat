@@ -56,6 +56,12 @@ export interface Stats {
   chunks: number;
 }
 
+export interface TranscriptSegment {
+  start_time: number;
+  end_time: number;
+  text: string;
+}
+
 /**
  * Get the database path in user's data directory.
  */
@@ -360,4 +366,18 @@ export function getStats(db: Database.Database): Stats {
     videos: videosRow.count,
     chunks: chunksRow.count,
   };
+}
+
+/**
+ * Get all transcript segments for a video, sorted by sequence.
+ */
+export function getVideoTranscript(db: Database.Database, videoId: string): TranscriptSegment[] {
+  const rows = db.prepare(`
+    SELECT start_time, end_time, text
+    FROM chunks
+    WHERE video_id = ?
+    ORDER BY seq ASC
+  `).all(videoId) as TranscriptSegment[];
+
+  return rows;
 }

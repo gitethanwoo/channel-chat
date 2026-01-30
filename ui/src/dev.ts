@@ -6,14 +6,17 @@ import "./styles.css";
 import { MOCK_SHOW_VIDEO_RESULT, MOCK_TRANSCRIPT, type TranscriptSegment } from "./mock-data.js";
 
 // DOM Elements
+const playerEl = document.querySelector(".video-player") as HTMLElement;
 const titleEl = document.getElementById("video-title") as HTMLElement;
 const channelEl = document.getElementById("channel-name") as HTMLElement;
 const fallbackEl = document.getElementById("youtube-fallback") as HTMLElement;
 const videoWrapper = document.getElementById("video-wrapper") as HTMLElement;
 const transcriptSegmentsEl = document.getElementById("transcript-segments") as HTMLElement;
+const fullscreenBtn = document.getElementById("fullscreen-btn") as HTMLButtonElement;
 
 let videoEl: HTMLVideoElement | null = null;
 let currentSegmentIndex = -1;
+let isFullscreen = false;
 
 /**
  * Format seconds to MM:SS or HH:MM:SS
@@ -131,6 +134,25 @@ function renderPlayer(videoUrl: string, startTime: number, segments: TranscriptS
 }
 
 /**
+ * Toggle fullscreen mode (mock implementation for dev mode)
+ */
+function toggleFullscreen() {
+  isFullscreen = !isFullscreen;
+  playerEl.classList.toggle("fullscreen", isFullscreen);
+  fullscreenBtn.classList.toggle("is-fullscreen", isFullscreen);
+  console.log("[Dev] Fullscreen toggled:", isFullscreen);
+}
+
+/**
+ * Handle Escape key to exit fullscreen
+ */
+function handleKeydown(event: KeyboardEvent) {
+  if (event.key === "Escape" && isFullscreen) {
+    toggleFullscreen();
+  }
+}
+
+/**
  * Initialize dev mode
  */
 function init() {
@@ -145,7 +167,13 @@ function init() {
   // Render player with transcript
   renderPlayer(result.video_url, result.start_time, transcript.segments);
 
+  // Mock fullscreen availability - show button for dev testing
+  fullscreenBtn.style.display = "flex";
+  fullscreenBtn.addEventListener("click", toggleFullscreen);
+  document.addEventListener("keydown", handleKeydown);
+
   console.log("[Dev] UI initialized with mock data");
+  console.log("[Dev] Fullscreen available for testing (click button or press Escape to exit)");
 }
 
 // Initialize on load

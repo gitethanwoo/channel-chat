@@ -44,9 +44,11 @@ const channelEl = document.getElementById("channel-name") as HTMLElement;
 const fallbackEl = document.getElementById("youtube-fallback") as HTMLElement;
 const videoWrapper = document.getElementById("video-wrapper") as HTMLElement;
 const transcriptSegmentsEl = document.getElementById("transcript-segments") as HTMLElement;
+const fullscreenBtn = document.getElementById("fullscreen-btn") as HTMLButtonElement;
 
 let videoEl: HTMLVideoElement | null = null;
 let currentSegmentIndex = -1;
+let isFullscreen = false;
 
 /**
  * Format seconds to MM:SS or HH:MM:SS
@@ -230,6 +232,37 @@ async function fetchTranscript(transcriptUri: string): Promise<TranscriptData | 
   }
 }
 
+/**
+ * Toggle fullscreen mode
+ */
+async function toggleFullscreen() {
+  const ctx = app.getHostContext();
+  const newMode = isFullscreen ? "inline" : "fullscreen";
+
+  if (ctx?.availableDisplayModes?.includes(newMode)) {
+    const result = await app.requestDisplayMode({ mode: newMode });
+    updateFullscreenState(result.mode === "fullscreen");
+  }
+}
+
+/**
+ * Update fullscreen state and UI
+ */
+function updateFullscreenState(fullscreen: boolean) {
+  isFullscreen = fullscreen;
+  playerEl.classList.toggle("fullscreen", fullscreen);
+  fullscreenBtn.classList.toggle("is-fullscreen", fullscreen);
+}
+
+/**
+ * Handle Escape key to exit fullscreen
+ */
+function handleKeydown(event: KeyboardEvent) {
+  if (event.key === "Escape" && isFullscreen) {
+    toggleFullscreen();
+  }
+}
+
 // Apply host theme and styles
 function handleHostContextChanged(ctx: McpUiHostContext) {
   if (ctx.theme) {
@@ -246,6 +279,16 @@ function handleHostContextChanged(ctx: McpUiHostContext) {
     playerEl.style.paddingRight = `${ctx.safeAreaInsets.right}px`;
     playerEl.style.paddingBottom = `${ctx.safeAreaInsets.bottom}px`;
     playerEl.style.paddingLeft = `${ctx.safeAreaInsets.left}px`;
+  }
+
+  // Check fullscreen availability and show/hide button
+  if (ctx.availableDisplayModes?.includes("fullscreen")) {
+    fullscreenBtn.style.display = "flex";
+  }
+
+  // Track current display mode
+  if (ctx.displayMode) {
+    updateFullscreenState(ctx.displayMode === "fullscreen");
   }
 }
 
@@ -298,6 +341,12 @@ app.ontoolcancelled = () => {
 app.onerror = console.error;
 
 app.onhostcontextchanged = handleHostContextChanged;
+
+// Set up fullscreen toggle button
+fullscreenBtn.addEventListener("click", toggleFullscreen);
+
+// Set up Escape key handler
+document.addEventListener("keydown", handleKeydown);
 
 // Connect to host
 app.connect().then(() => {

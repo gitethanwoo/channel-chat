@@ -10,11 +10,23 @@
       <div class="main-content">
         <div class="video-section">
           <div class="video-container">
+            <div class="video-header">
+              <div class="video-header-left">
+                <h2 id="video-title">Loading...</h2>
+              </div>
+              <button id="fullscreen-btn" class="fullscreen-btn" title="Toggle fullscreen" style="display: none;">
+                <svg class="icon-expand" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+                </svg>
+                <svg class="icon-collapse" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 14h6v6m10-10h-6V4m0 6 7-7M3 21l7-7"/>
+                </svg>
+              </button>
+            </div>
             <div class="video-wrapper" id="video-wrapper">
               <!-- Video will be inserted here -->
             </div>
             <div class="video-info">
-              <h2 id="video-title">Loading...</h2>
               <div class="video-meta">
                 <span id="channel-name" class="channel-name"></span>
                 <span class="youtube-fallback" id="youtube-fallback"></span>

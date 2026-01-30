@@ -12,11 +12,11 @@ const channelEl = document.getElementById("channel-name") as HTMLElement;
 const fallbackEl = document.getElementById("youtube-fallback") as HTMLElement;
 const videoWrapper = document.getElementById("video-wrapper") as HTMLElement;
 const transcriptSegmentsEl = document.getElementById("transcript-segments") as HTMLElement;
-const fullscreenBtn = document.getElementById("fullscreen-btn") as HTMLButtonElement;
+const expandBtn = document.getElementById("expand-btn") as HTMLButtonElement;
 
 let videoEl: HTMLVideoElement | null = null;
 let currentSegmentIndex = -1;
-let isFullscreen = false;
+let isExpanded = false;
 
 /**
  * Format seconds to MM:SS or HH:MM:SS
@@ -104,8 +104,7 @@ function renderTranscript(segments: TranscriptSegment[]) {
  * Render the video player
  */
 function renderPlayer(videoUrl: string, startTime: number, segments: TranscriptSegment[]) {
-  // For dev mode, use a sample video or YouTube embed
-  // Using a public test video for development
+  // For dev mode, use a sample video
   videoWrapper.innerHTML = `
     <video id="video-player" controls playsinline>
       <source src="https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/720/Big_Buck_Bunny_720_10s_1MB.mp4" type="video/mp4">
@@ -121,35 +120,18 @@ function renderPlayer(videoUrl: string, startTime: number, segments: TranscriptS
     }
   });
 
-  // Seek to start time when ready
-  videoEl.addEventListener("loadedmetadata", () => {
-    if (videoEl && startTime > 0) {
-      // For the test video, we'll just start from 0 since it's short
-      // In real usage, this would seek to startTime
-    }
-  });
-
   // Render transcript
   renderTranscript(segments);
 }
 
 /**
- * Toggle fullscreen mode (mock implementation for dev mode)
+ * Toggle expanded layout (side-by-side vs vertical)
  */
-function toggleFullscreen() {
-  isFullscreen = !isFullscreen;
-  playerEl.classList.toggle("fullscreen", isFullscreen);
-  fullscreenBtn.classList.toggle("is-fullscreen", isFullscreen);
-  console.log("[Dev] Fullscreen toggled:", isFullscreen);
-}
-
-/**
- * Handle Escape key to exit fullscreen
- */
-function handleKeydown(event: KeyboardEvent) {
-  if (event.key === "Escape" && isFullscreen) {
-    toggleFullscreen();
-  }
+function toggleExpanded() {
+  isExpanded = !isExpanded;
+  playerEl.classList.toggle("expanded", isExpanded);
+  expandBtn.title = isExpanded ? "Collapse view" : "Expand view";
+  console.log("[Dev] Layout toggled:", isExpanded ? "expanded" : "collapsed");
 }
 
 /**
@@ -167,13 +149,11 @@ function init() {
   // Render player with transcript
   renderPlayer(result.video_url, result.start_time, transcript.segments);
 
-  // Mock fullscreen availability - show button for dev testing
-  fullscreenBtn.style.display = "flex";
-  fullscreenBtn.addEventListener("click", toggleFullscreen);
-  document.addEventListener("keydown", handleKeydown);
+  // Set up expand button
+  expandBtn.addEventListener("click", toggleExpanded);
 
   console.log("[Dev] UI initialized with mock data");
-  console.log("[Dev] Fullscreen available for testing (click button or press Escape to exit)");
+  console.log("[Dev] Click expand button to toggle side-by-side layout");
 }
 
 // Initialize on load

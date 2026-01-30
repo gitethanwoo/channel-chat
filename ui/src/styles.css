@@ -16,22 +16,32 @@ body {
 }
 
 /* =====================================================
-   Main Layout - Side by Side
+   Main Layout - Default Vertical (Collapsed)
    ===================================================== */
 .video-player {
   display: flex;
   flex-direction: column;
-  padding: 20px;
+  padding: 16px;
   max-width: 100%;
-  min-height: 100vh;
-  min-height: 100dvh;
 }
 
 .main-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* =====================================================
+   Expanded Layout - Side by Side
+   ===================================================== */
+.video-player.expanded .main-content {
   display: grid;
   grid-template-columns: 1fr 340px;
   gap: 20px;
-  flex: 1;
+}
+
+.video-player.expanded .transcript-panel {
+  max-height: calc(100vh - 100px);
 }
 
 .video-section {
@@ -74,44 +84,44 @@ body {
   white-space: nowrap;
 }
 
-/* Fullscreen toggle button */
-.fullscreen-btn {
+/* Expand toggle button */
+.expand-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   padding: 0;
   margin-left: 12px;
   background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
+  border-radius: 6px;
   color: var(--color-text-secondary, #888);
   cursor: pointer;
   transition: all 0.15s ease;
   flex-shrink: 0;
 }
 
-.fullscreen-btn:hover {
+.expand-btn:hover {
   background: rgba(255, 255, 255, 0.06);
   color: var(--color-text-primary, #fafafa);
   border-color: rgba(255, 255, 255, 0.15);
 }
 
-.fullscreen-btn:focus-visible {
+.expand-btn:focus-visible {
   outline: 2px solid var(--color-accent-primary, #6b9fff);
   outline-offset: 2px;
 }
 
-.fullscreen-btn .icon-collapse {
+.expand-btn .icon-collapse {
   display: none;
 }
 
-.fullscreen-btn.is-fullscreen .icon-expand {
+.video-player.expanded .expand-btn .icon-expand {
   display: none;
 }
 
-.fullscreen-btn.is-fullscreen .icon-collapse {
+.video-player.expanded .expand-btn .icon-collapse {
   display: block;
 }
 
@@ -213,7 +223,11 @@ body {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  max-height: calc(100vh - 80px);
+  max-height: 280px;
+}
+
+.video-player.expanded .transcript-panel {
+  max-height: calc(100vh - 100px);
 }
 
 .transcript-header {
@@ -351,16 +365,17 @@ body {
 }
 
 /* =====================================================
-   Responsive - Stack on smaller screens
+   Responsive - Ensure expanded works on larger screens
    ===================================================== */
-@media (max-width: 900px) {
-  .main-content {
-    grid-template-columns: 1fr;
-    gap: 16px;
+@media (max-width: 700px) {
+  .video-player.expanded .main-content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
   }
 
-  .transcript-panel {
-    max-height: 300px;
+  .video-player.expanded .transcript-panel {
+    max-height: 280px;
   }
 }
 
@@ -389,71 +404,6 @@ body {
   .segment-text {
     font-size: 13px;
   }
-}
-
-/* =====================================================
-   Fullscreen Mode
-   ===================================================== */
-.video-player.fullscreen {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  width: 100vw;
-  height: 100vh;
-  padding: 0 !important;
-  z-index: 9999;
-  background: var(--color-background-primary, #0a0a0a);
-}
-
-.video-player.fullscreen .main-content {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  gap: 0;
-}
-
-.video-player.fullscreen .video-section {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.video-player.fullscreen .video-container {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  border-radius: 0;
-}
-
-.video-player.fullscreen .video-header {
-  flex-shrink: 0;
-}
-
-.video-player.fullscreen .video-wrapper {
-  flex: 1;
-  aspect-ratio: auto;
-}
-
-.video-player.fullscreen .video-wrapper video {
-  object-fit: contain;
-}
-
-.video-player.fullscreen .video-info {
-  flex-shrink: 0;
-}
-
-.video-player.fullscreen .transcript-section {
-  flex-shrink: 0;
-  max-height: 200px;
-  overflow: hidden;
-}
-
-.video-player.fullscreen .transcript-panel {
-  max-height: 200px;
-  border-radius: 0;
 }
 
 /* Focus states */

@@ -338,6 +338,118 @@ async function handleDeleteVideo(videoId: string, env: Env): Promise<Response> {
 }
 
 /**
+ * Dedupe segments - remove consecutive duplicates and short timing artifacts.
+ */
+function dedupeSegments(
+  segments: Array<{ text: string; start_time: number; end_time: number }>
+): Array<{ text: string; start_time: number; end_time: number }> {
+  if (segments.length === 0) return [];
+
+  const result: typeof segments = [];
+  let prevText = '';
+
+  for (const seg of segments) {
+    if (seg.text === prevText) continue;
+    const duration = seg.end_time - seg.start_time;
+    if (duration < 0.05 && result.length > 0) continue;
+    result.push(seg);
+    prevText = seg.text;
+  }
+
+  return result;
+}
+
+/**
+ * Handle POST /api/admin/dedupe-transcripts - Dedupe all R2 transcripts
+ */
+async function handleDedupeTranscripts(request: Request, env: Env): Promise<Response> {
+  try {
+    const body = await request.json() as { dryRun?: boolean; videoId?: string };
+    const dryRun = body.dryRun !== false; // Default to dry run for safety
+
+    // If specific video ID provided, only process that one
+    if (body.videoId) {
+      const video = await getVideo(env.DB, body.videoId);
+      if (!video || !video.r2_transcript_key) {
+        return errorResponse('Video not found or has no transcript', 404);
+      }
+
+      const obj = await env.R2.get(video.r2_transcript_key);
+      if (!obj) {
+        return errorResponse('Transcript not found in R2', 404);
+      }
+
+      const text = await obj.text();
+      const segments = JSON.parse(text) as Array<{ text: string; start_time: number; end_time: number }>;
+      const deduped = dedupeSegments(segments);
+
+      if (!dryRun && deduped.length < segments.length) {
+        await env.R2.put(video.r2_transcript_key, JSON.stringify(deduped), {
+          httpMetadata: { contentType: 'application/json' },
+        });
+      }
+
+      return jsonResponse({
+        dryRun,
+        videoId: body.videoId,
+        before: segments.length,
+        after: deduped.length,
+        removed: segments.length - deduped.length,
+      });
+    }
+
+    // Process all videos
+    const videos = await env.DB
+      .prepare('SELECT id, r2_transcript_key FROM videos WHERE r2_transcript_key IS NOT NULL')
+      .all<{ id: string; r2_transcript_key: string }>();
+
+    const results: Array<{ videoId: string; before: number; after: number }> = [];
+    let updated = 0;
+    let totalRemoved = 0;
+
+    for (const video of videos.results) {
+      const obj = await env.R2.get(video.r2_transcript_key);
+      if (!obj) continue;
+
+      const text = await obj.text();
+      const segments = JSON.parse(text) as Array<{ text: string; start_time: number; end_time: number }>;
+      const deduped = dedupeSegments(segments);
+
+      if (deduped.length < segments.length) {
+        const removed = segments.length - deduped.length;
+        totalRemoved += removed;
+        results.push({
+          videoId: video.id,
+          before: segments.length,
+          after: deduped.length,
+        });
+
+        if (!dryRun) {
+          await env.R2.put(video.r2_transcript_key, JSON.stringify(deduped), {
+            httpMetadata: { contentType: 'application/json' },
+          });
+          updated++;
+        }
+      }
+    }
+
+    return jsonResponse({
+      dryRun,
+      processed: videos.results.length,
+      updated: dryRun ? 0 : updated,
+      totalRemoved,
+      results,
+    });
+  } catch (error) {
+    console.error('Dedupe transcripts error:', error);
+    return errorResponse(
+      error instanceof Error ? error.message : 'Failed to dedupe transcripts',
+      500
+    );
+  }
+}
+
+/**
  * Handle GET /video/:id - Stream video from R2 with Range header support
  */
 async function handleVideoRequest(videoId: string, request: Request, env: Env): Promise<Response> {
@@ -973,6 +1085,13 @@ export default {
         const authError = verifyApiKey(request, env);
         if (authError) return authError;
         return await handleDeleteVideo(deleteVideoMatch[1], env);
+      }
+
+      // Admin: Dedupe transcripts in R2 (requires API key)
+      if (path === '/api/admin/dedupe-transcripts' && method === 'POST') {
+        const authError = verifyApiKey(request, env);
+        if (authError) return authError;
+        return await handleDedupeTranscripts(request, env);
       }
 
       // Video streaming - match /video/:id

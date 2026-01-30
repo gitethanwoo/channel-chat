@@ -22,6 +22,8 @@ interface ShowVideoResult {
   video_url: string;
   start_time: number;
   transcript_uri: string;
+  description: string | null;
+  reason: string | null;
 }
 
 interface TranscriptSegment {
@@ -45,6 +47,9 @@ const fallbackEl = document.getElementById("youtube-fallback") as HTMLElement;
 const videoWrapper = document.getElementById("video-wrapper") as HTMLElement;
 const transcriptSegmentsEl = document.getElementById("transcript-segments") as HTMLElement;
 const expandBtn = document.getElementById("expand-btn") as HTMLButtonElement;
+const videoContextEl = document.getElementById("video-context") as HTMLElement;
+const videoReasonEl = document.getElementById("video-reason") as HTMLElement;
+const videoDescriptionEl = document.getElementById("video-description") as HTMLElement;
 
 let videoEl: HTMLVideoElement | null = null;
 let currentSegmentIndex = -1;
@@ -306,6 +311,33 @@ app.ontoolresult = async (result) => {
   titleEl.textContent = showVideo.video_title;
   channelEl.textContent = showVideo.channel_name;
   fallbackEl.innerHTML = `<a href="https://youtube.com/watch?v=${showVideo.video_id}" target="_blank">Watch on YouTube</a>`;
+
+  // Update context (reason and description)
+  const hasReason = showVideo.reason && showVideo.reason.trim().length > 0;
+  const hasDescription = showVideo.description && showVideo.description.trim().length > 0;
+
+  if (hasReason || hasDescription) {
+    videoContextEl.style.display = "block";
+
+    if (hasReason) {
+      videoReasonEl.innerHTML = `<strong>Why this:</strong> ${showVideo.reason}`;
+      videoReasonEl.style.display = "block";
+    } else {
+      videoReasonEl.style.display = "none";
+    }
+
+    if (hasDescription) {
+      // Truncate long descriptions
+      const desc = showVideo.description!;
+      const truncated = desc.length > 300 ? desc.slice(0, 300) + "..." : desc;
+      videoDescriptionEl.textContent = truncated;
+      videoDescriptionEl.style.display = "block";
+    } else {
+      videoDescriptionEl.style.display = "none";
+    }
+  } else {
+    videoContextEl.style.display = "none";
+  }
 
   // Fetch full transcript
   const transcript = await fetchTranscript(showVideo.transcript_uri);

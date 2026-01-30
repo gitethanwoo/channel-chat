@@ -115,6 +115,10 @@ const MCP_TOOLS = [
           type: 'number',
           description: 'Start playback at this timestamp (in seconds)',
         },
+        reason: {
+          type: 'string',
+          description: 'Brief explanation of why this video/segment is relevant to the user\'s query (shown to user)',
+        },
       },
       required: ['video_id'],
     },
@@ -944,7 +948,8 @@ async function handleMcpToolsCall(
           return jsonRpcError(id, -32602, 'Invalid params: video_id must be a non-empty string');
         }
         const startTime = typeof toolArgs.start_time === 'number' ? toolArgs.start_time : 0;
-        const result = await showVideo(env, videoId, startTime, baseUrl);
+        const reason = typeof toolArgs.reason === 'string' ? toolArgs.reason : undefined;
+        const result = await showVideo(env, videoId, startTime, reason, baseUrl);
         return jsonRpcSuccess(id, result);
       }
 

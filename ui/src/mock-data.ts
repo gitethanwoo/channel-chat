@@ -16,6 +16,8 @@ export interface ShowVideoResult {
   video_url: string;
   start_time: number;
   transcript_uri: string;
+  description: string | null;
+  reason: string | null;
 }
 
 export interface TranscriptData {
@@ -32,6 +34,8 @@ export const MOCK_SHOW_VIDEO_RESULT: ShowVideoResult = {
   video_url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
   start_time: 12,
   transcript_uri: "transcript://dQw4w9WgXcQ",
+  description: "In this episode, we dive deep into the role of Forward Deployed Engineers (FDEs) - a unique position that bridges the gap between product development and customer success. Learn what makes great FDEs, how the role evolved at companies like Palantir, and whether this career path might be right for you.",
+  reason: "This video discusses the FDE role at Palantir and how they bridge product and customer needs - directly relevant to your question about forward deployed engineering.",
 };
 
 export const MOCK_TRANSCRIPT: TranscriptData = {

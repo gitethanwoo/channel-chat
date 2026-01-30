@@ -13,6 +13,9 @@ const fallbackEl = document.getElementById("youtube-fallback") as HTMLElement;
 const videoWrapper = document.getElementById("video-wrapper") as HTMLElement;
 const transcriptSegmentsEl = document.getElementById("transcript-segments") as HTMLElement;
 const expandBtn = document.getElementById("expand-btn") as HTMLButtonElement;
+const videoContextEl = document.getElementById("video-context") as HTMLElement;
+const videoReasonEl = document.getElementById("video-reason") as HTMLElement;
+const videoDescriptionEl = document.getElementById("video-description") as HTMLElement;
 
 let videoEl: HTMLVideoElement | null = null;
 let currentSegmentIndex = -1;
@@ -145,6 +148,30 @@ function init() {
   titleEl.textContent = result.video_title;
   channelEl.textContent = result.channel_name;
   fallbackEl.innerHTML = `<a href="https://youtube.com/watch?v=${result.video_id}" target="_blank">Watch on YouTube</a>`;
+
+  // Update context (reason and description)
+  const hasReason = result.reason && result.reason.trim().length > 0;
+  const hasDescription = result.description && result.description.trim().length > 0;
+
+  if (hasReason || hasDescription) {
+    videoContextEl.style.display = "block";
+
+    if (hasReason) {
+      videoReasonEl.innerHTML = `<strong>Why this:</strong> ${result.reason}`;
+      videoReasonEl.style.display = "block";
+    } else {
+      videoReasonEl.style.display = "none";
+    }
+
+    if (hasDescription) {
+      const desc = result.description!;
+      const truncated = desc.length > 300 ? desc.slice(0, 300) + "..." : desc;
+      videoDescriptionEl.textContent = truncated;
+      videoDescriptionEl.style.display = "block";
+    } else {
+      videoDescriptionEl.style.display = "none";
+    }
+  }
 
   // Render player with transcript
   renderPlayer(result.video_url, result.start_time, transcript.segments);

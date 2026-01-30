@@ -259,12 +259,15 @@ export interface ShowVideoResult {
   video_url: string;
   start_time: number;
   transcript_uri: string;
+  description: string | null;
+  reason: string | null;
 }
 
 export async function showVideo(
   env: Env,
   videoId: string,
   startTime: number = 0,
+  reason?: string,
   baseUrl?: string
 ): Promise<{ content: Array<{ type: string; text: string }>; structuredContent: ShowVideoResult }> {
   const video = await getVideo(env.DB, videoId);
@@ -288,6 +291,8 @@ export async function showVideo(
     video_url: videoUrl,
     start_time: startTime,
     transcript_uri: transcriptUri,
+    description: video.description,
+    reason: reason ?? null,
   };
 
   const textOutput = `Showing: ${video.title}\nChannel: ${channelName}\nStarting at: ${formatTimestamp(startTime)}`;

@@ -187,6 +187,38 @@ body {
   font-weight: 400;
 }
 
+/* =====================================================
+   Video Context (Why this + Description)
+   ===================================================== */
+.video-context {
+  padding: 16px 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.video-reason {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-text-primary, #e5e5e5);
+  padding: 12px 16px;
+  background: rgba(107, 159, 255, 0.08);
+  border-left: 3px solid var(--color-accent-primary, #6b9fff);
+  border-radius: 0 8px 8px 0;
+}
+
+.video-reason strong {
+  color: var(--color-accent-primary, #6b9fff);
+  font-weight: 600;
+}
+
+.video-description {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--color-text-secondary, #888);
+}
+
 .timestamp {
   font-size: 14px;
   color: var(--color-accent-primary, #6b9fff);

@@ -148,9 +148,15 @@ export async function searchTranscripts(
     output += `- Excerpt: ${text.slice(0, 300)}${text.length > 300 ? '...' : ''}\n\n`;
   }
 
+  const structured = { query, results };
+
   return {
-    content: [{ type: 'text', text: output }],
-    structuredContent: { query, results },
+    // Put JSON first so UIs can reliably parse even if `structuredContent` is not forwarded by a host.
+    content: [
+      { type: 'text', text: JSON.stringify(structured) },
+      { type: 'text', text: output },
+    ],
+    structuredContent: structured,
   };
 }
 

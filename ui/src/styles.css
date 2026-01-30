@@ -1,3 +1,5 @@
+/* Channel Chat Video Player - MCP App */
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -5,23 +7,31 @@
 }
 
 body {
-  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
-  background: var(--color-background-primary, #1a1a1a);
-  color: var(--color-text-primary, #e5e5e5);
+  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif);
+  background: var(--color-background-primary, #0a0a0a);
+  color: var(--color-text-primary, #fafafa);
   line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
+/* Main container */
 .video-player {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding: 16px;
+  padding: 20px;
   max-width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
 }
 
+/* =====================================================
+   Video Container
+   ===================================================== */
 .video-container {
-  background: var(--color-background-secondary, #262626);
-  border-radius: var(--border-radius-lg, 12px);
+  background: var(--color-background-secondary, #161616);
+  border-radius: 12px;
   overflow: hidden;
 }
 
@@ -32,51 +42,14 @@ body {
   display: block;
 }
 
-.youtube-fallback {
-  padding: 8px 16px;
-  text-align: center;
-  font-size: var(--font-text-sm-size, 14px);
-}
-
-.youtube-fallback a {
-  color: var(--color-text-secondary, #a3a3a3);
-  text-decoration: none;
-}
-
-.youtube-fallback a:hover {
-  color: var(--color-accent-primary, #3b82f6);
-}
-
-.video-card {
-  aspect-ratio: 16 / 9;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  background: linear-gradient(135deg, #1a1a2e, #16213e);
-  transition: background 0.2s;
-}
-
-.video-card:hover {
-  background: linear-gradient(135deg, #1f1f3a, #1a2847);
-}
-
-.video-card .play-button {
-  margin-bottom: 12px;
-}
-
-.video-card .watch-text {
-  font-size: var(--font-text-sm-size, 14px);
-  color: var(--color-text-secondary, #a3a3a3);
-}
-
+/* Thumbnail wrapper */
 .thumbnail-wrapper {
   position: relative;
   width: 100%;
   aspect-ratio: 16 / 9;
   display: block;
   overflow: hidden;
+  background: #000;
 }
 
 .video-thumbnail {
@@ -91,39 +64,105 @@ body {
   left: 50%;
   transform: translate(-50%, -50%);
   opacity: 0.9;
-  transition: opacity 0.2s, transform 0.2s;
+  transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
 .thumbnail-wrapper:hover .play-overlay {
   opacity: 1;
-  transform: translate(-50%, -50%) scale(1.1);
+  transform: translate(-50%, -50%) scale(1.05);
 }
 
+/* Video card (click-to-play state) */
+.video-card {
+  aspect-ratio: 16 / 9;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: #111;
+  transition: background 0.2s ease;
+}
+
+.video-card:hover {
+  background: #1a1a1a;
+}
+
+.video-card .play-button {
+  margin-bottom: 12px;
+}
+
+.video-card .watch-text {
+  font-size: 13px;
+  color: #666;
+}
+
+/* =====================================================
+   Video Info Section
+   ===================================================== */
 .video-info {
-  padding: 12px 16px;
+  padding: 16px 20px 20px;
 }
 
 .video-info h2 {
-  font-size: var(--font-heading-md-size, 18px);
-  font-weight: var(--font-weight-semibold, 600);
-  margin-bottom: 4px;
-  color: var(--color-text-primary, #e5e5e5);
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--color-text-primary, #fafafa);
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+}
+
+.video-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0;
 }
 
 .channel-name {
-  font-size: var(--font-text-sm-size, 14px);
-  color: var(--color-text-secondary, #a3a3a3);
+  font-size: 14px;
+  color: var(--color-text-secondary, #888);
+  font-weight: 400;
 }
 
 .timestamp {
-  font-size: var(--font-text-sm-size, 14px);
-  color: var(--color-accent-primary, #3b82f6);
+  font-size: 14px;
+  color: var(--color-accent-primary, #6b9fff);
+  margin-left: 8px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* YouTube fallback - inline with metadata */
+.youtube-fallback {
+  display: inline;
   margin-left: 12px;
 }
 
+.youtube-fallback a {
+  font-size: 14px;
+  color: var(--color-text-secondary, #666);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.youtube-fallback a:hover {
+  color: var(--color-text-primary, #fafafa);
+}
+
+.youtube-fallback a::before {
+  content: "·";
+  margin-right: 12px;
+  color: var(--color-text-secondary, #444);
+}
+
+/* =====================================================
+   Transcript Panel
+   ===================================================== */
 .transcript-panel {
-  background: var(--color-background-secondary, #262626);
-  border-radius: var(--border-radius-lg, 12px);
+  background: var(--color-background-secondary, #161616);
+  border-radius: 12px;
   overflow: hidden;
 }
 
@@ -131,42 +170,78 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--color-border-primary, #404040);
-  font-size: var(--font-text-sm-size, 14px);
-  font-weight: var(--font-weight-medium, 500);
-  color: var(--color-text-secondary, #a3a3a3);
+  padding: 14px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
+.transcript-header > span:first-child {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary, #888);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Match score badge */
 .score {
-  background: var(--color-accent-primary, #3b82f6);
-  color: white;
-  padding: 2px 8px;
-  border-radius: var(--border-radius-sm, 4px);
-  font-size: var(--font-text-xs-size, 12px);
+  background: rgba(107, 159, 255, 0.15);
+  color: var(--color-accent-primary, #6b9fff);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
 }
 
+/* Transcript text */
 .transcript-text {
-  padding: 16px;
-  font-size: var(--font-text-md-size, 16px);
+  padding: 20px;
+  font-size: 15px;
   line-height: 1.7;
   max-height: 200px;
   overflow-y: auto;
+  color: var(--color-text-primary, #e5e5e5);
+}
+
+.transcript-text:empty {
+  display: none;
 }
 
 .transcript-text .highlight {
-  background: rgba(59, 130, 246, 0.3);
-  padding: 2px 0;
-  border-radius: 2px;
+  background: rgba(107, 159, 255, 0.2);
+  padding: 2px 4px;
+  border-radius: 4px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
 }
 
-/* Loading state */
+/* Custom scrollbar */
+.transcript-text::-webkit-scrollbar {
+  width: 8px;
+}
+
+.transcript-text::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.transcript-text::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+.transcript-text::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* =====================================================
+   Loading State
+   ===================================================== */
 .loading {
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 200px;
-  color: var(--color-text-secondary, #a3a3a3);
+  color: var(--color-text-secondary, #666);
+  font-size: 14px;
 }
 
 .loading::after {
@@ -176,5 +251,46 @@ body {
 
 @keyframes pulse {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  50% { opacity: 0.4; }
+}
+
+.video-player.loading .video-container,
+.video-player.loading .transcript-panel {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* =====================================================
+   Responsive
+   ===================================================== */
+@media (max-width: 480px) {
+  .video-player {
+    padding: 16px;
+    gap: 12px;
+  }
+
+  .video-info {
+    padding: 14px 16px 16px;
+  }
+
+  .video-info h2 {
+    font-size: 16px;
+  }
+
+  .transcript-header {
+    padding: 12px 16px;
+  }
+
+  .transcript-text {
+    padding: 16px;
+    font-size: 14px;
+    max-height: 160px;
+  }
+}
+
+/* Focus states */
+.youtube-fallback a:focus-visible {
+  outline: 2px solid var(--color-accent-primary, #6b9fff);
+  outline-offset: 2px;
+  border-radius: 2px;
 }

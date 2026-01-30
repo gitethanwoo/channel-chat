@@ -10,7 +10,6 @@ import {
   applyHostFonts,
   type McpUiHostContext,
 } from "@modelcontextprotocol/ext-apps";
-import { ReadResourceResultSchema } from "@modelcontextprotocol/sdk/types.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import "./styles.css";
 
@@ -57,19 +56,44 @@ function formatTimestamp(seconds: number): string {
 // Create MCP App
 const app = new App({ name: "Channel Chat Player", version: "1.0.0" });
 
-type VideoBlobContent = {
-  uri: string;
-  mimeType: string;
-  blob: string;
-};
+function getClipDurationSecondsFromResourceUri(resourceUri: string): number | null {
+  try {
+    const url = new URL(resourceUri);
+    const duration = url.searchParams.get("duration");
+    if (!duration) return null;
+    const parsed = Number(duration);
+    if (!Number.isFinite(parsed) || parsed <= 0) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
 
-async function loadClip(resourceUri: string): Promise<string> {
-  const resourceResult = await app.request(
-    { method: "resources/read", params: { uri: resourceUri } },
-    ReadResourceResultSchema
+function setUpClipLikePlayback(videoEl: HTMLVideoElement, result: SearchResult) {
+  // Seek to start time when metadata is loaded
+  videoEl.addEventListener(
+    "loadedmetadata",
+    () => {
+      videoEl.currentTime = result.start_time;
+    },
+    { once: true }
   );
-  const content = resourceResult.contents[0] as VideoBlobContent;
-  return `data:${content.mimeType};base64,${content.blob}`;
+
+  // Pause once at an approximate end time (clip-like behavior) but don't "lock" playback.
+  // Transcript timestamps are chunk-level and can be slightly off, so prefer duration if present.
+  const durationFromUri = getClipDurationSecondsFromResourceUri(result.clip_resource_uri);
+  const pauseAt =
+    durationFromUri !== null
+      ? result.start_time + durationFromUri
+      : result.end_time + 2; // small buffer to avoid cutting off the tail
+
+  const onTimeUpdate = () => {
+    if (videoEl.currentTime >= pauseAt) {
+      videoEl.pause();
+      videoEl.removeEventListener("timeupdate", onTimeUpdate);
+    }
+  };
+  videoEl.addEventListener("timeupdate", onTimeUpdate);
 }
 
 // Render a search result as video player
@@ -79,28 +103,16 @@ async function renderResult(result: SearchResult) {
   videoContainer.innerHTML = `<div class="loading"></div>`;
   fallbackEl.innerHTML = `<a href="${result.youtube_url}" target="_blank">Watch on YouTube</a>`;
 
-  // Create video element
+  // Use HTTPS streaming by default (Range requests supported by /video/:id).
   videoContainer.innerHTML = `
     <video id="clip-player" controls autoplay playsinline></video>
   `;
-  const clipPlayer = document.getElementById("clip-player") as HTMLVideoElement;
-
-  // Always use MCP resources/read for video - direct HTTP URLs are blocked by sandbox CSP
-  const dataUri = await loadClip(result.clip_resource_uri);
-  clipPlayer.src = dataUri;
-
-  // Seek to start time when metadata is loaded
-  clipPlayer.addEventListener("loadedmetadata", () => {
-    clipPlayer.currentTime = result.start_time;
-  }, { once: true });
-
-  // Optional: Pause at end_time (for clip-like behavior)
-  const endTime = result.end_time;
-  clipPlayer.addEventListener("timeupdate", () => {
-    if (clipPlayer.currentTime >= endTime) {
-      clipPlayer.pause();
-    }
-  });
+  const player = document.getElementById("clip-player") as HTMLVideoElement;
+  const httpUrl =
+    result.cloudflare_video_url ??
+    `https://channelmcp.com/video/${encodeURIComponent(result.video_id)}`;
+  player.src = httpUrl;
+  setUpClipLikePlayback(player, result);
 
   // Update info
   titleEl.textContent = result.video_title;

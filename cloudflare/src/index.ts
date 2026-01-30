@@ -30,15 +30,19 @@ const SERVER_VERSION = '1.0.0';
 // UI Resource constants for MCP App
 const PLAYER_RESOURCE_URI = 'ui://channel-chat/player.html';
 const RESOURCE_MIME_TYPE = 'text/html;profile=mcp-app';
+const RESOURCE_CSP = {
+  // Allow YouTube embeds (using nocookie domain for privacy/fewer restrictions)
+  frameDomains: ['https://www.youtube-nocookie.com'],
+  // Allow loading media in the sandbox (HTTPS streaming + optional data/blob media URLs)
+  resourceDomains: ['https://channelmcp.com', 'data:', 'blob:'],
+  // Allow API calls to our domain
+  connectDomains: ['https://channelmcp.com'],
+};
 const RESOURCE_META = {
-  csp: {
-    // Allow YouTube embeds (using nocookie domain for privacy/fewer restrictions)
-    frameDomains: ['https://www.youtube-nocookie.com'],
-    // Allow loading videos from our own domain
-    resourceDomains: ['https://channelmcp.com'],
-    // Allow API calls to our domain
-    connectDomains: ['https://channelmcp.com'],
-  },
+  // Spec/current shape
+  ui: { csp: RESOURCE_CSP },
+  // Legacy shape (some hosts read this)
+  csp: RESOURCE_CSP,
 };
 
 // Video resource URI prefix
@@ -98,6 +102,9 @@ const MCP_TOOLS = [
       ui: {
         resourceUri: PLAYER_RESOURCE_URI,
       },
+      // Back-compat for hosts that read the legacy key instead of nested `_meta.ui.resourceUri`.
+      // `@modelcontextprotocol/ext-apps/server`'s `registerAppTool` sets both.
+      'ui/resourceUri': PLAYER_RESOURCE_URI,
     },
   },
   {
@@ -527,12 +534,12 @@ async function handleVideosRequest(env: Env, url: URL): Promise<Response> {
     if (channelId) {
       videos = await env.DB.prepare(
         'SELECT id FROM videos WHERE channel_id = ?'
-      ).bind(channelId).all();
+      ).bind(channelId).all<{ id: string }>();
     } else {
-      videos = await env.DB.prepare('SELECT id FROM videos').all();
+      videos = await env.DB.prepare('SELECT id FROM videos').all<{ id: string }>();
     }
     // Return just the video IDs for efficient deduplication
-    const videoIds = videos.results.map((v) => v.id as string);
+    const videoIds = videos.results.map((v) => v.id);
     return jsonResponse(videoIds);
   } catch (error) {
     console.error('Videos request error:', error);

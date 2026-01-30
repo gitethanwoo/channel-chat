@@ -210,11 +210,21 @@ const server = new Server(
 );
 
 // List resources
-// Resource metadata for sandbox/CSP configuration
+// Resource metadata for sandbox/CSP configuration.
+// Note: Hosts read this from `contents[]. _meta.ui.*` on the UI HTML resource.
 const RESOURCE_META = {
+  ui: {
+    csp: {
+      // Allow YouTube embeds (using nocookie domain for privacy/fewer restrictions)
+      frameDomains: ['https://www.youtube-nocookie.com'],
+      // Allow media sources that use data/blob URIs in the UI sandbox
+      resourceDomains: ['data:', 'blob:'],
+    },
+  },
+  // Legacy shape (some hosts read this)
   csp: {
-    // Allow YouTube embeds (using nocookie domain for privacy/fewer restrictions)
     frameDomains: ['https://www.youtube-nocookie.com'],
+    resourceDomains: ['data:', 'blob:'],
   },
 };
 
@@ -306,6 +316,9 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           ui: {
             resourceUri: PLAYER_RESOURCE_URI,
           },
+          // Back-compat for hosts that read the legacy key instead of nested `_meta.ui.resourceUri`.
+          // `@modelcontextprotocol/ext-apps/server`'s `registerAppTool` sets both.
+          'ui/resourceUri': PLAYER_RESOURCE_URI,
         },
       },
       {
@@ -430,9 +443,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       output += `- Excerpt: ${text.slice(0, 300)}${text.length > 300 ? '...' : ''}\n\n`;
     }
 
+    const structured = { query, results };
+
     return {
-      content: [{ type: 'text', text: output }],
-      structuredContent: { query, results },
+      // Put JSON first so UIs can reliably parse even if `structuredContent` is not forwarded by a host.
+      content: [
+        { type: 'text', text: JSON.stringify(structured) },
+        { type: 'text', text: output },
+      ],
+      structuredContent: structured,
     };
     } catch (error) {
       console.error(`[MCP] Search error:`, error);

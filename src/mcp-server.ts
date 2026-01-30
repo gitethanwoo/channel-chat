@@ -35,6 +35,8 @@ import {
   getVideo,
   getStats,
   updateVideoPath,
+  getVideoTranscript,
+  getChannel,
 } from './database.js';
 import {
   getChannelInfo,
@@ -60,6 +62,7 @@ const PLAYER_RESOURCE_URI = 'ui://channel-chat/player.html';
 const RESOURCE_MIME_TYPE = 'text/html;profile=mcp-app';
 const CLIP_RESOURCE_PREFIX = 'video://clip/';
 const CLIP_RESOURCE_MIME_TYPE = 'video/mp4';
+const TRANSCRIPT_RESOURCE_PREFIX = 'transcript://';
 
 /**
  * Load the bundled UI HTML.
@@ -282,6 +285,38 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
           uri: request.params.uri,
           mimeType: CLIP_RESOURCE_MIME_TYPE,
           blob: base64,
+        },
+      ],
+    };
+  }
+  if (request.params.uri.startsWith(TRANSCRIPT_RESOURCE_PREFIX)) {
+    const videoId = request.params.uri.slice(TRANSCRIPT_RESOURCE_PREFIX.length);
+    console.log(`[MCP] Resource transcript: ${videoId}`);
+
+    const db = getConnection();
+    initDb(db);
+    const video = getVideo(db, videoId);
+    if (!video) {
+      db.close();
+      throw new Error(`Video not found: ${videoId}`);
+    }
+    const channel = getChannel(db, video.channel_id);
+    const segments = getVideoTranscript(db, videoId);
+    db.close();
+
+    const transcriptData = {
+      video_id: videoId,
+      video_title: video.title,
+      channel_name: channel?.name ?? 'Unknown Channel',
+      segments,
+    };
+
+    return {
+      contents: [
+        {
+          uri: request.params.uri,
+          mimeType: 'application/json',
+          text: JSON.stringify(transcriptData),
         },
       ],
     };

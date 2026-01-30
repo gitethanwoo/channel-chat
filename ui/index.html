@@ -7,25 +7,29 @@
   </head>
   <body>
     <div class="video-player">
-      <div class="video-container">
-        <div class="thumbnail-wrapper" id="thumbnail-wrapper">
-          <!-- Video will be inserted here -->
-        </div>
-        <div class="video-info">
-          <h2 id="video-title">Loading...</h2>
-          <div class="video-meta">
-            <span id="channel-name" class="channel-name"></span>
-            <span id="timestamp" class="timestamp"></span>
-            <span class="youtube-fallback" id="youtube-fallback"></span>
+      <div class="main-content">
+        <div class="video-section">
+          <div class="video-container">
+            <div class="video-wrapper" id="video-wrapper">
+              <!-- Video will be inserted here -->
+            </div>
+            <div class="video-info">
+              <h2 id="video-title">Loading...</h2>
+              <div class="video-meta">
+                <span id="channel-name" class="channel-name"></span>
+                <span class="youtube-fallback" id="youtube-fallback"></span>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-      <div class="transcript-panel">
-        <div class="transcript-header">
-          <span>Transcript</span>
-          <span id="score" class="score"></span>
+        <div class="transcript-section">
+          <div class="transcript-panel">
+            <div class="transcript-header">
+              <span>Transcript</span>
+            </div>
+            <div id="transcript-segments" class="transcript-segments"></div>
+          </div>
         </div>
-        <div id="transcript-text" class="transcript-text"></div>
       </div>
     </div>
     <script type="module" src="/src/app.ts"></script>

@@ -1,7 +1,7 @@
 /**
  * Channel Chat Video Player - MCP App
  *
- * Displays YouTube video clips with transcript from search results.
+ * Displays video with full seekable transcript from show_video tool.
  */
 import {
   App,
@@ -11,37 +11,46 @@ import {
   type McpUiHostContext,
 } from "@modelcontextprotocol/ext-apps";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import { ReadResourceResultSchema } from "@modelcontextprotocol/sdk/types.js";
 import "./styles.css";
 
-// Search result from our MCP tool
-interface SearchResult {
-  text: string;
-  video_title: string;
+// Types for show_video tool result
+interface ShowVideoResult {
   video_id: string;
+  video_title: string;
   channel_name: string;
+  video_url: string;
   start_time: number;
-  end_time: number;
-  youtube_url: string;
-  clip_resource_uri: string;
-  cloudflare_video_url?: string;
-  score: number;
+  transcript_uri: string;
 }
 
-interface ToolResultContent {
-  results: SearchResult[];
-  query: string;
+interface TranscriptSegment {
+  start_time: number;
+  end_time: number;
+  text: string;
+}
+
+interface TranscriptData {
+  video_id: string;
+  video_title: string;
+  channel_name: string;
+  segments: TranscriptSegment[];
 }
 
 // DOM Elements
 const playerEl = document.querySelector(".video-player") as HTMLElement;
 const titleEl = document.getElementById("video-title") as HTMLElement;
 const channelEl = document.getElementById("channel-name") as HTMLElement;
-const timestampEl = document.getElementById("timestamp") as HTMLElement;
-const transcriptEl = document.getElementById("transcript-text") as HTMLElement;
-const scoreEl = document.getElementById("score") as HTMLElement;
 const fallbackEl = document.getElementById("youtube-fallback") as HTMLElement;
+const videoWrapper = document.getElementById("video-wrapper") as HTMLElement;
+const transcriptSegmentsEl = document.getElementById("transcript-segments") as HTMLElement;
 
-// Format seconds to MM:SS or HH:MM:SS
+let videoEl: HTMLVideoElement | null = null;
+let currentSegmentIndex = -1;
+
+/**
+ * Format seconds to MM:SS or HH:MM:SS
+ */
 function formatTimestamp(seconds: number): string {
   const hrs = Math.floor(seconds / 3600);
   const mins = Math.floor((seconds % 3600) / 60);
@@ -53,96 +62,172 @@ function formatTimestamp(seconds: number): string {
   return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 
-// Create MCP App
-const app = new App({ name: "Channel Chat Player", version: "1.0.0" });
-
-function getClipDurationSecondsFromResourceUri(resourceUri: string): number | null {
-  try {
-    const url = new URL(resourceUri);
-    const duration = url.searchParams.get("duration");
-    if (!duration) return null;
-    const parsed = Number(duration);
-    if (!Number.isFinite(parsed) || parsed <= 0) return null;
-    return parsed;
-  } catch {
-    return null;
+/**
+ * Seek video to a specific time
+ */
+function seekTo(time: number) {
+  if (videoEl) {
+    videoEl.currentTime = time;
+    videoEl.play();
   }
 }
 
-function setUpClipLikePlayback(videoEl: HTMLVideoElement, result: SearchResult) {
-  // Seek to start time when metadata is loaded
+/**
+ * Highlight the current segment based on video time
+ */
+function updateCurrentSegment(currentTime: number, segments: TranscriptSegment[]) {
+  const newIndex = segments.findIndex(
+    (seg) => currentTime >= seg.start_time && currentTime < seg.end_time
+  );
+
+  if (newIndex !== currentSegmentIndex) {
+    // Remove old highlight
+    if (currentSegmentIndex >= 0) {
+      const oldEl = document.querySelector(`[data-segment-index="${currentSegmentIndex}"]`);
+      oldEl?.classList.remove("active");
+    }
+
+    // Add new highlight
+    if (newIndex >= 0) {
+      const newEl = document.querySelector(`[data-segment-index="${newIndex}"]`);
+      newEl?.classList.add("active");
+
+      // Scroll into view if needed
+      newEl?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+
+    currentSegmentIndex = newIndex;
+  }
+}
+
+/**
+ * Render the transcript segments
+ */
+function renderTranscript(segments: TranscriptSegment[]) {
+  transcriptSegmentsEl.innerHTML = "";
+
+  segments.forEach((segment, index) => {
+    const segmentEl = document.createElement("div");
+    segmentEl.className = "transcript-segment";
+    segmentEl.dataset.segmentIndex = index.toString();
+
+    const timestampEl = document.createElement("span");
+    timestampEl.className = "segment-timestamp";
+    timestampEl.textContent = formatTimestamp(segment.start_time);
+
+    const textEl = document.createElement("span");
+    textEl.className = "segment-text";
+    textEl.textContent = segment.text;
+
+    segmentEl.appendChild(timestampEl);
+    segmentEl.appendChild(textEl);
+
+    segmentEl.addEventListener("click", () => {
+      seekTo(segment.start_time);
+    });
+
+    transcriptSegmentsEl.appendChild(segmentEl);
+  });
+}
+
+/**
+ * Render the video player with transcript
+ */
+function renderPlayer(
+  videoUrl: string,
+  videoId: string,
+  startTime: number,
+  segments: TranscriptSegment[]
+) {
+  // Create video element
+  videoWrapper.innerHTML = `
+    <video id="video-player" controls autoplay playsinline></video>
+  `;
+
+  videoEl = document.getElementById("video-player") as HTMLVideoElement;
+  videoEl.src = videoUrl;
+
+  // Set up time tracking for segment highlighting
+  videoEl.addEventListener("timeupdate", () => {
+    if (videoEl) {
+      updateCurrentSegment(videoEl.currentTime, segments);
+    }
+  });
+
+  // Seek to start time when ready
   videoEl.addEventListener(
     "loadedmetadata",
     () => {
-      videoEl.currentTime = result.start_time;
+      if (videoEl && startTime > 0) {
+        videoEl.currentTime = startTime;
+      }
     },
     { once: true }
   );
 
-  // Pause once at an approximate end time (clip-like behavior) but don't "lock" playback.
-  // Transcript timestamps are chunk-level and can be slightly off, so prefer duration if present.
-  const durationFromUri = getClipDurationSecondsFromResourceUri(result.clip_resource_uri);
-  const pauseAt =
-    durationFromUri !== null
-      ? result.start_time + durationFromUri
-      : result.end_time + 2; // small buffer to avoid cutting off the tail
+  // Render transcript
+  renderTranscript(segments);
 
-  const onTimeUpdate = () => {
-    if (videoEl.currentTime >= pauseAt) {
-      videoEl.pause();
-      videoEl.removeEventListener("timeupdate", onTimeUpdate);
+  // Highlight initial segment if starting mid-video
+  if (startTime > 0) {
+    const initialIndex = segments.findIndex(
+      (seg) => startTime >= seg.start_time && startTime < seg.end_time
+    );
+    if (initialIndex >= 0) {
+      const el = document.querySelector(`[data-segment-index="${initialIndex}"]`);
+      el?.classList.add("active");
+      el?.scrollIntoView({ behavior: "instant", block: "center" });
+      currentSegmentIndex = initialIndex;
     }
-  };
-  videoEl.addEventListener("timeupdate", onTimeUpdate);
-}
-
-// Render a search result as video player
-async function renderResult(result: SearchResult) {
-  const videoContainer = document.getElementById("thumbnail-wrapper") as HTMLElement;
-
-  videoContainer.innerHTML = `<div class="loading"></div>`;
-  fallbackEl.innerHTML = `<a href="${result.youtube_url}" target="_blank">Watch on YouTube</a>`;
-
-  // Use HTTPS streaming by default (Range requests supported by /video/:id).
-  videoContainer.innerHTML = `
-    <video id="clip-player" controls autoplay playsinline></video>
-  `;
-  const player = document.getElementById("clip-player") as HTMLVideoElement;
-  const httpUrl =
-    result.cloudflare_video_url ??
-    `https://channelmcp.com/video/${encodeURIComponent(result.video_id)}`;
-  player.src = httpUrl;
-  setUpClipLikePlayback(player, result);
-
-  // Update info
-  titleEl.textContent = result.video_title;
-  channelEl.textContent = result.channel_name;
-  timestampEl.textContent = `${formatTimestamp(result.start_time)} - ${formatTimestamp(result.end_time)}`;
-
-  // Clean transcript text (remove title prefix if present)
-  let text = result.text;
-  if (text.includes("|")) {
-    text = text.split("|").slice(1).join("|").trim();
   }
-  transcriptEl.textContent = text;
-
-  // Show score
-  scoreEl.textContent = `${Math.round(result.score * 100)}% match`;
 }
 
-// Extract results from tool output
-function extractResults(result: CallToolResult): ToolResultContent | null {
+// Create MCP App
+const app = new App({ name: "Channel Chat Player", version: "2.0.0" });
+
+/**
+ * Extract show_video result from tool output
+ */
+function extractShowVideoResult(result: CallToolResult): ShowVideoResult | null {
   if (result.structuredContent) {
-    return result.structuredContent as ToolResultContent;
+    return result.structuredContent as ShowVideoResult;
   }
 
   const textContent = result.content?.find(
     (c): c is { type: "text"; text: string } => c.type === "text"
   );
   if (textContent) {
-    return JSON.parse(textContent.text) as ToolResultContent;
+    try {
+      return JSON.parse(textContent.text) as ShowVideoResult;
+    } catch {
+      return null;
+    }
   }
   return null;
+}
+
+/**
+ * Fetch transcript data from MCP resource
+ */
+async function fetchTranscript(transcriptUri: string): Promise<TranscriptData | null> {
+  try {
+    console.info("[Player] Fetching transcript:", transcriptUri);
+    const resourceResult = await app.request(
+      { method: "resources/read", params: { uri: transcriptUri } },
+      ReadResourceResultSchema
+    );
+
+    const content = resourceResult.contents[0];
+    if (!content || !("text" in content)) {
+      console.error("[Player] Transcript resource did not contain text");
+      return null;
+    }
+
+    return JSON.parse(content.text) as TranscriptData;
+  } catch (err) {
+    console.error("[Player] Error fetching transcript:", err);
+    return null;
+  }
 }
 
 // Apply host theme and styles
@@ -172,21 +257,36 @@ app.onteardown = async () => {
 
 app.ontoolinput = (params) => {
   console.info("[Player] Tool input:", params);
-  // Could show loading state here
   playerEl.classList.add("loading");
 };
 
 app.ontoolresult = async (result) => {
   console.info("[Player] Tool result:", result);
 
-  const data = extractResults(result);
-  if (data && data.results && data.results.length > 0) {
-    // Show the best result (first one)
-    await renderResult(data.results[0]);
-  } else {
-    titleEl.textContent = "No results found";
-    transcriptEl.textContent = "Try a different search query.";
+  const showVideo = extractShowVideoResult(result);
+  if (!showVideo) {
+    titleEl.textContent = "Error";
+    transcriptSegmentsEl.innerHTML = '<div class="transcript-segment"><span class="segment-text">Could not parse video data.</span></div>';
+    playerEl.classList.remove("loading");
+    return;
   }
+
+  // Update video info
+  titleEl.textContent = showVideo.video_title;
+  channelEl.textContent = showVideo.channel_name;
+  fallbackEl.innerHTML = `<a href="https://youtube.com/watch?v=${showVideo.video_id}" target="_blank">Watch on YouTube</a>`;
+
+  // Fetch full transcript
+  const transcript = await fetchTranscript(showVideo.transcript_uri);
+
+  if (!transcript || !transcript.segments.length) {
+    // Fallback: show video without transcript
+    renderPlayer(showVideo.video_url, showVideo.video_id, showVideo.start_time, []);
+    transcriptSegmentsEl.innerHTML = '<div class="transcript-segment"><span class="segment-text">Transcript not available.</span></div>';
+  } else {
+    renderPlayer(showVideo.video_url, showVideo.video_id, showVideo.start_time, transcript.segments);
+  }
+
   playerEl.classList.remove("loading");
 };
 

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Channel Chat Player - Dev Mode</title>
+  </head>
+  <body>
+    <div class="video-player">
+      <div class="main-content">
+        <div class="video-section">
+          <div class="video-container">
+            <div class="video-wrapper" id="video-wrapper">
+              <!-- Video will be inserted here -->
+            </div>
+            <div class="video-info">
+              <h2 id="video-title">Loading...</h2>
+              <div class="video-meta">
+                <span id="channel-name" class="channel-name"></span>
+                <span class="youtube-fallback" id="youtube-fallback"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="transcript-section">
+          <div class="transcript-panel">
+            <div class="transcript-header">
+              <span>Transcript</span>
+            </div>
+            <div id="transcript-segments" class="transcript-segments"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/dev.ts"></script>
+  </body>
+</html>

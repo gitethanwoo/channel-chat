@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "dev": "vite"
+    "dev": "vite",
+    "dev:standalone": "vite --open /dev.html"
   },
   "devDependencies": {
     "@modelcontextprotocol/ext-apps": "^1.0.1",

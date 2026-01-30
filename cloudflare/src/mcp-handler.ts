@@ -151,6 +151,8 @@ export async function searchTranscripts(
     output += `- Excerpt: ${text.slice(0, 300)}${text.length > 300 ? '...' : ''}\n\n`;
   }
 
+  output += `---\n**To display a video to the user, use the \`show_video\` tool with the video_id and start_time.**`;
+
   const structured = { query, results };
 
   return {

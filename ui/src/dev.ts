@@ -16,10 +16,12 @@ const expandBtn = document.getElementById("expand-btn") as HTMLButtonElement;
 const videoContextEl = document.getElementById("video-context") as HTMLElement;
 const videoReasonEl = document.getElementById("video-reason") as HTMLElement;
 const videoDescriptionEl = document.getElementById("video-description") as HTMLElement;
+const descriptionToggleEl = document.getElementById("description-toggle") as HTMLButtonElement;
 
 let videoEl: HTMLVideoElement | null = null;
 let currentSegmentIndex = -1;
 let isExpanded = false;
+let descriptionExpanded = false;
 
 /**
  * Parse timestamp string to seconds
@@ -71,6 +73,15 @@ function setupChapterClickHandlers() {
       seekTo(time);
     });
   });
+}
+
+/**
+ * Toggle description expanded state
+ */
+function toggleDescriptionExpanded() {
+  descriptionExpanded = !descriptionExpanded;
+  videoDescriptionEl.classList.toggle("show-full", descriptionExpanded);
+  descriptionToggleEl.textContent = descriptionExpanded ? "Show less" : "Show more";
 }
 
 /**
@@ -232,6 +243,9 @@ function init() {
 
   // Set up expand button
   expandBtn.addEventListener("click", toggleExpanded);
+
+  // Set up description toggle
+  descriptionToggleEl.addEventListener("click", toggleDescriptionExpanded);
 
   console.log("[Dev] UI initialized with mock data");
   console.log("[Dev] Click expand button to toggle side-by-side layout");

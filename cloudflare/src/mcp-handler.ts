@@ -10,6 +10,33 @@ import { generateEmbedding, searchVectors } from './vectorize';
 // Constants
 const TRANSCRIPT_RESOURCE_PREFIX = 'transcript://';
 
+/**
+ * Deduplicate consecutive segments with identical text.
+ * YouTube VTT often has each phrase twice - once with real duration, once with 0.01s.
+ */
+function dedupeSegments(
+  segments: Array<{ text: string; start_time: number; end_time: number }>
+): Array<{ text: string; start_time: number; end_time: number }> {
+  if (segments.length === 0) return [];
+
+  const result: typeof segments = [];
+  let prevText = '';
+
+  for (const seg of segments) {
+    // Skip exact duplicates of previous segment
+    if (seg.text === prevText) continue;
+
+    // Skip very short segments (< 0.05s) that are just timing artifacts
+    const duration = seg.end_time - seg.start_time;
+    if (duration < 0.05 && result.length > 0) continue;
+
+    result.push(seg);
+    prevText = seg.text;
+  }
+
+  return result;
+}
+
 // Constants for clip resource URIs
 const CLIP_RESOURCE_PREFIX = 'video://clip/';
 const DEFAULT_CLIP_DURATION = 60;
@@ -311,15 +338,14 @@ export async function getVideoTranscript(
           end_time: number;
         }>;
 
+        // Dedupe consecutive duplicates from VTT artifacts
+        const dedupedSegments = dedupeSegments(rawSegments);
+
         return {
           video_id: videoId,
           video_title: video.title,
           channel_name: channel?.name ?? 'Unknown Channel',
-          segments: rawSegments.map((seg) => ({
-            start_time: seg.start_time,
-            end_time: seg.end_time,
-            text: seg.text,
-          })),
+          segments: dedupedSegments,
         };
       }
     } catch (err) {

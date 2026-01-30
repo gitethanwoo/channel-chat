@@ -218,24 +218,47 @@ export async function indexContent(
 /**
  * Download a video file using yt-dlp.
  * Returns the path to the downloaded video.
+ * @param videoId - YouTube video ID
+ * @param outputDir - Directory to save the video
+ * @param maxHeight - Maximum video height (default: 720)
+ * @param onProgress - Optional callback for progress updates
  */
 export async function downloadVideo(
   videoId: string,
-  outputDir: string
+  outputDir: string,
+  maxHeight: number = 720,
+  onProgress?: (message: string) => void
 ): Promise<string> {
   await mkdir(outputDir, { recursive: true });
   const outputPath = join(outputDir, `${videoId}.mp4`);
 
+  // Format string: best video up to maxHeight + best audio, fallback to combined
+  // Don't filter by ext since many videos only have m3u8/HLS streams
+  const formatStr = `bestvideo[height<=${maxHeight}]+bestaudio/best[height<=${maxHeight}]/best`;
+
   return new Promise((resolve, reject) => {
     const ytdlp = spawn('yt-dlp', [
-      '--js-runtimes', 'node',
-      '-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+      '-f', formatStr,
       '--merge-output-format', 'mp4',
+      '--progress',
+      '--newline',
       '-o', outputPath,
       `https://www.youtube.com/watch?v=${videoId}`,
     ]);
 
     let stderr = '';
+
+    ytdlp.stdout.on('data', (data) => {
+      const line = data.toString().trim();
+      // Parse progress line like "[download]  45.2% of 50.00MiB at 2.50MiB/s"
+      if (onProgress && line.includes('%')) {
+        const match = line.match(/(\d+\.?\d*)%/);
+        if (match) {
+          onProgress(`Downloading video: ${match[1]}%`);
+        }
+      }
+    });
+
     ytdlp.stderr.on('data', (data) => {
       stderr += data.toString();
     });
@@ -265,4 +288,32 @@ export function isCloudflareConfigured(): boolean {
     process.env.CLOUDFLARE_R2_ACCESS_KEY_ID &&
     process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY
   );
+}
+
+/**
+ * Get list of already-indexed video IDs from Cloudflare.
+ * @param config - Cloudflare configuration
+ * @param channelId - Optional channel ID to filter by
+ * @returns Array of video IDs
+ */
+export async function getIndexedVideos(
+  config: CloudflareConfig,
+  channelId?: string
+): Promise<string[]> {
+  const url = new URL(`${config.workerUrl}/api/videos`);
+  if (channelId) {
+    url.searchParams.set('channel_id', channelId);
+  }
+
+  try {
+    const response = await fetch(url.toString());
+    if (!response.ok) {
+      console.warn(`Failed to fetch indexed videos: ${response.statusText}`);
+      return [];
+    }
+    return await response.json() as string[];
+  } catch (error) {
+    console.warn(`Failed to fetch indexed videos: ${error}`);
+    return [];
+  }
 }

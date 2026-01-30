@@ -48,7 +48,7 @@ const expandBtn = document.getElementById("expand-btn") as HTMLButtonElement;
 
 let videoEl: HTMLVideoElement | null = null;
 let currentSegmentIndex = -1;
-let isExpanded = false;
+let currentDisplayMode: "inline" | "fullscreen" = "inline";
 
 /**
  * Format seconds to MM:SS or HH:MM:SS
@@ -233,13 +233,19 @@ async function fetchTranscript(transcriptUri: string): Promise<TranscriptData | 
 }
 
 /**
- * Toggle expanded layout (side-by-side vs vertical)
+ * Toggle fullscreen mode via MCP displayMode API
  */
-function toggleExpanded() {
-  isExpanded = !isExpanded;
-  playerEl.classList.toggle("expanded", isExpanded);
-  expandBtn.title = isExpanded ? "Collapse view" : "Expand view";
-  console.info("[Player] Layout toggled:", isExpanded ? "expanded" : "collapsed");
+async function toggleFullscreen() {
+  const newMode = currentDisplayMode === "fullscreen" ? "inline" : "fullscreen";
+  try {
+    const result = await app.requestDisplayMode({ mode: newMode });
+    currentDisplayMode = result.mode as "inline" | "fullscreen";
+    playerEl.classList.toggle("expanded", currentDisplayMode === "fullscreen");
+    expandBtn.title = currentDisplayMode === "fullscreen" ? "Collapse view" : "Expand view";
+    console.info("[Player] Display mode changed:", currentDisplayMode);
+  } catch (err) {
+    console.error("[Player] Failed to change display mode:", err);
+  }
 }
 
 // Apply host theme and styles
@@ -258,6 +264,19 @@ function handleHostContextChanged(ctx: McpUiHostContext) {
     playerEl.style.paddingRight = `${ctx.safeAreaInsets.right}px`;
     playerEl.style.paddingBottom = `${ctx.safeAreaInsets.bottom}px`;
     playerEl.style.paddingLeft = `${ctx.safeAreaInsets.left}px`;
+  }
+
+  // Show expand button only if fullscreen is available
+  if (ctx.availableDisplayModes !== undefined) {
+    const canFullscreen = ctx.availableDisplayModes.includes("fullscreen");
+    expandBtn.classList.toggle("available", canFullscreen);
+  }
+
+  // Update display mode state and UI
+  if (ctx.displayMode) {
+    currentDisplayMode = ctx.displayMode as "inline" | "fullscreen";
+    playerEl.classList.toggle("expanded", currentDisplayMode === "fullscreen");
+    expandBtn.title = currentDisplayMode === "fullscreen" ? "Collapse view" : "Expand view";
   }
 }
 
@@ -312,7 +331,14 @@ app.onerror = console.error;
 app.onhostcontextchanged = handleHostContextChanged;
 
 // Set up expand toggle button
-expandBtn.addEventListener("click", toggleExpanded);
+expandBtn.addEventListener("click", toggleFullscreen);
+
+// Handle Escape key to exit fullscreen
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && currentDisplayMode === "fullscreen") {
+    toggleFullscreen();
+  }
+});
 
 // Connect to host
 app.connect().then(() => {

@@ -149,6 +149,9 @@ function init() {
   // Render player with transcript
   renderPlayer(result.video_url, result.start_time, transcript.segments);
 
+  // In dev mode, always show expand button (no MCP host to check)
+  expandBtn.classList.add("available");
+
   // Set up expand button
   expandBtn.addEventListener("click", toggleExpanded);
 

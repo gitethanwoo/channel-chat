@@ -84,9 +84,9 @@ body {
   white-space: nowrap;
 }
 
-/* Expand toggle button */
+/* Expand toggle button - hidden by default, shown when fullscreen available */
 .expand-btn {
-  display: flex;
+  display: none; /* Hidden by default, shown when .available */
   align-items: center;
   justify-content: center;
   width: 32px;
@@ -100,6 +100,10 @@ body {
   cursor: pointer;
   transition: all 0.15s ease;
   flex-shrink: 0;
+}
+
+.expand-btn.available {
+  display: flex;
 }
 
 .expand-btn:hover {

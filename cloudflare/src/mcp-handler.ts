@@ -4,8 +4,11 @@
  */
 
 import type { Env, ChannelRow, SearchResult } from './types';
-import { listChannels, getChunksByVectorizeIds, getStats as getDbStats } from './db';
+import { listChannels, getChunksByVectorizeIds, getStats as getDbStats, getVideo, getChannel, getVideoChunks } from './db';
 import { generateEmbedding, searchVectors } from './vectorize';
+
+// Constants
+const TRANSCRIPT_RESOURCE_PREFIX = 'transcript://';
 
 // Constants for clip resource URIs
 const CLIP_RESOURCE_PREFIX = 'video://clip/';
@@ -213,5 +216,96 @@ export async function getStats(
   return {
     content: [{ type: 'text', text: output }],
     structuredContent: stats,
+  };
+}
+
+/**
+ * Show a specific video with its full transcript.
+ * Called by Claude after evaluating search results.
+ */
+export interface ShowVideoResult {
+  video_id: string;
+  video_title: string;
+  channel_name: string;
+  video_url: string;
+  start_time: number;
+  transcript_uri: string;
+}
+
+export async function showVideo(
+  env: Env,
+  videoId: string,
+  startTime: number = 0,
+  baseUrl?: string
+): Promise<{ content: Array<{ type: string; text: string }>; structuredContent: ShowVideoResult }> {
+  const video = await getVideo(env.DB, videoId);
+  if (!video) {
+    throw new Error(`Video not found: ${videoId}`);
+  }
+
+  const channel = await getChannel(env.DB, video.channel_id);
+  const channelName = channel?.name ?? 'Unknown Channel';
+
+  const videoUrl = baseUrl
+    ? `${baseUrl}/video/${encodeURIComponent(videoId)}`
+    : `https://channelmcp.com/video/${encodeURIComponent(videoId)}`;
+
+  const transcriptUri = `${TRANSCRIPT_RESOURCE_PREFIX}${videoId}`;
+
+  const structured: ShowVideoResult = {
+    video_id: videoId,
+    video_title: video.title,
+    channel_name: channelName,
+    video_url: videoUrl,
+    start_time: startTime,
+    transcript_uri: transcriptUri,
+  };
+
+  const textOutput = `Showing: ${video.title}\nChannel: ${channelName}\nStarting at: ${formatTimestamp(startTime)}`;
+
+  return {
+    content: [
+      { type: 'text', text: JSON.stringify(structured) },
+      { type: 'text', text: textOutput },
+    ],
+    structuredContent: structured,
+  };
+}
+
+/**
+ * Get the full transcript for a video (for transcript:// resource).
+ */
+export interface TranscriptData {
+  video_id: string;
+  video_title: string;
+  channel_name: string;
+  segments: Array<{
+    start_time: number;
+    end_time: number;
+    text: string;
+  }>;
+}
+
+export async function getVideoTranscript(
+  env: Env,
+  videoId: string
+): Promise<TranscriptData> {
+  const video = await getVideo(env.DB, videoId);
+  if (!video) {
+    throw new Error(`Video not found: ${videoId}`);
+  }
+
+  const channel = await getChannel(env.DB, video.channel_id);
+  const chunks = await getVideoChunks(env.DB, videoId);
+
+  return {
+    video_id: videoId,
+    video_title: video.title,
+    channel_name: channel?.name ?? 'Unknown Channel',
+    segments: chunks.map((chunk) => ({
+      start_time: chunk.start_time ?? 0,
+      end_time: chunk.end_time ?? 0,
+      text: chunk.text,
+    })),
   };
 }

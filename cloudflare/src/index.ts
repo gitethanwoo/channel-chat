@@ -19,7 +19,7 @@ import {
   upsertVectors,
   deleteVectors,
 } from './vectorize';
-import { searchTranscripts, listIndexedChannels, getStats as getMcpStats } from './mcp-handler';
+import { searchTranscripts, listIndexedChannels, getStats as getMcpStats, showVideo, getVideoTranscript } from './mcp-handler';
 import { UI_HTML } from './ui-html';
 
 // MCP Protocol constants
@@ -47,6 +47,8 @@ const RESOURCE_META = {
 
 // Video resource URI prefix
 const VIDEO_URI_PREFIX = 'video://clip/';
+// Transcript resource URI prefix
+const TRANSCRIPT_URI_PREFIX = 'transcript://';
 
 /**
  * Convert ArrayBuffer to base64 string (Cloudflare Workers compatible)
@@ -83,7 +85,7 @@ interface JsonRpcResponse {
 const MCP_TOOLS = [
   {
     name: 'search_transcripts',
-    description: 'Search indexed YouTube video transcripts using semantic similarity. Returns relevant transcript excerpts with timestamps and links.',
+    description: 'Search indexed YouTube video transcripts using semantic similarity. Returns relevant transcript excerpts with timestamps and links. Use this to find relevant content, then call show_video to display the best result.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -98,12 +100,28 @@ const MCP_TOOLS = [
       },
       required: ['query'],
     },
+  },
+  {
+    name: 'show_video',
+    description: 'Display a video with its full seekable transcript. Call this after using search_transcripts to show the best matching result to the user.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        video_id: {
+          type: 'string',
+          description: 'YouTube video ID to display',
+        },
+        start_time: {
+          type: 'number',
+          description: 'Start playback at this timestamp (in seconds)',
+        },
+      },
+      required: ['video_id'],
+    },
     _meta: {
       ui: {
         resourceUri: PLAYER_RESOURCE_URI,
       },
-      // Back-compat for hosts that read the legacy key instead of nested `_meta.ui.resourceUri`.
-      // `@modelcontextprotocol/ext-apps/server`'s `registerAppTool` sets both.
       'ui/resourceUri': PLAYER_RESOURCE_URI,
     },
   },
@@ -629,6 +647,12 @@ function handleMcpResourcesList(id: string | number | null): JsonRpcResponse {
         description: 'Video clip resource. Returns full video as base64 blob (start/duration used for UI seeking).',
         mimeType: 'video/mp4',
       },
+      {
+        uriTemplate: 'transcript://{videoId}',
+        name: 'Video Transcript',
+        description: 'Full transcript for a video with timestamps for each segment.',
+        mimeType: 'application/json',
+      },
     ],
   });
 }
@@ -747,6 +771,30 @@ async function handleMcpResourcesRead(
     }
   }
 
+  // Handle transcript resource
+  if (params.uri.startsWith(TRANSCRIPT_URI_PREFIX)) {
+    const videoId = params.uri.slice(TRANSCRIPT_URI_PREFIX.length);
+    try {
+      const transcriptData = await getVideoTranscript(env, videoId);
+      return jsonRpcSuccess(id, {
+        contents: [
+          {
+            uri: params.uri,
+            mimeType: 'application/json',
+            text: JSON.stringify(transcriptData),
+          },
+        ],
+      });
+    } catch (error) {
+      console.error('Error fetching transcript resource:', error);
+      return jsonRpcError(
+        id,
+        -32603,
+        error instanceof Error ? error.message : 'Failed to fetch transcript resource'
+      );
+    }
+  }
+
   return jsonRpcError(id, -32602, `Unknown resource: ${params.uri}`);
 }
 
@@ -775,6 +823,16 @@ async function handleMcpToolsCall(
         }
         const limit = typeof toolArgs.limit === 'number' ? Math.min(toolArgs.limit, 20) : 5;
         const result = await searchTranscripts(env, query, limit, baseUrl);
+        return jsonRpcSuccess(id, result);
+      }
+
+      case 'show_video': {
+        const videoId = toolArgs.video_id;
+        if (typeof videoId !== 'string' || videoId.length === 0) {
+          return jsonRpcError(id, -32602, 'Invalid params: video_id must be a non-empty string');
+        }
+        const startTime = typeof toolArgs.start_time === 'number' ? toolArgs.start_time : 0;
+        const result = await showVideo(env, videoId, startTime, baseUrl);
         return jsonRpcSuccess(id, result);
       }
 

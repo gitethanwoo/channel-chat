@@ -35,6 +35,20 @@ export async function listChannels(db: D1Database): Promise<ChannelRow[]> {
 }
 
 /**
+ * Get a channel by ID.
+ */
+export async function getChannel(
+  db: D1Database,
+  id: string
+): Promise<ChannelRow | null> {
+  const result = await db
+    .prepare('SELECT * FROM channels WHERE id = ?')
+    .bind(id)
+    .first<ChannelRow>();
+  return result;
+}
+
+/**
  * Insert or update a video.
  */
 export async function upsertVideo(

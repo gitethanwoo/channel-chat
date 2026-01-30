@@ -56,6 +56,31 @@ let currentSegmentIndex = -1;
 let currentDisplayMode: "inline" | "fullscreen" = "inline";
 
 /**
+ * Format description with clickable links and chapter formatting
+ */
+function formatDescription(text: string): string {
+  // Escape HTML
+  let html = text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
+  // Convert URLs to clickable links
+  html = html.replace(
+    /(https?:\/\/[^\s]+)/g,
+    '<a href="$1" target="_blank" rel="noopener">$1</a>'
+  );
+
+  // Format chapters: patterns like "00:00 - Title" or "00:00 Title"
+  html = html.replace(
+    /^(\d{1,2}:\d{2}(?::\d{2})?)\s*[-–—]?\s*(.+)$/gm,
+    '<span class="chapter"><span class="chapter-time">$1</span>$2</span>'
+  );
+
+  return html;
+}
+
+/**
  * Format seconds to MM:SS or HH:MM:SS
  */
 function formatTimestamp(seconds: number): string {
@@ -327,8 +352,8 @@ app.ontoolresult = async (result) => {
     }
 
     if (hasDescription) {
-      // Show full description (no truncation)
-      videoDescriptionEl.textContent = showVideo.description!;
+      // Format description with links and chapters
+      videoDescriptionEl.innerHTML = formatDescription(showVideo.description!);
       videoDescriptionEl.style.display = "block";
     } else {
       videoDescriptionEl.style.display = "none";

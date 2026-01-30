@@ -34,7 +34,18 @@ export const MOCK_SHOW_VIDEO_RESULT: ShowVideoResult = {
   video_url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
   start_time: 12,
   transcript_uri: "transcript://dQw4w9WgXcQ",
-  description: "In this episode, we dive deep into the role of Forward Deployed Engineers (FDEs) - a unique position that bridges the gap between product development and customer success. Learn what makes great FDEs, how the role evolved at companies like Palantir, and whether this career path might be right for you.",
+  description: `Bob McGrew helped build some of the most influential technologies of the past two decades. Bob was an early engineer at PayPal, an early executive at Palantir and was recently Chief Research Officer at OpenAI - where he led the development of ChatGPT, GPT-4 and the o1 reasoning model.
+
+Apply to Y Combinator: https://www.ycombinator.com/apply
+Work at a startup: https://www.ycombinator.com/jobs
+
+Chapters:
+00:29 - From PayPal to Palantir to OpenAI
+02:19 - The Role of a Forward Deployed Engineer
+03:19 - How Palantir Invented It
+07:56 - Product Discovery in the Field vs. Sales
+09:51 - Echo and Delta Teams Explained
+13:34 - Training Ground for Founders`,
   reason: "This video discusses the FDE role at Palantir and how they bridge product and customer needs - directly relevant to your question about forward deployed engineering.",
 };
 

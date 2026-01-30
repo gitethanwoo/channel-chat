@@ -215,8 +215,31 @@ body {
 
 .video-description {
   font-size: 15px;
-  line-height: 1.6;
+  line-height: 1.7;
   color: var(--color-text-secondary, #aaa);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.video-description a {
+  color: var(--color-accent-primary, #6b9fff);
+  text-decoration: none;
+}
+
+.video-description a:hover {
+  text-decoration: underline;
+}
+
+.video-description .chapter {
+  display: block;
+  padding: 4px 0;
+  color: var(--color-text-primary, #e5e5e5);
+}
+
+.video-description .chapter-time {
+  color: var(--color-accent-primary, #6b9fff);
+  font-variant-numeric: tabular-nums;
+  margin-right: 8px;
 }
 
 .timestamp {

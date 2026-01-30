@@ -56,6 +56,17 @@ let currentSegmentIndex = -1;
 let currentDisplayMode: "inline" | "fullscreen" = "inline";
 
 /**
+ * Parse timestamp string to seconds
+ */
+function parseTimestamp(ts: string): number {
+  const parts = ts.split(":").map(Number);
+  if (parts.length === 3) {
+    return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  }
+  return parts[0] * 60 + parts[1];
+}
+
+/**
  * Format description with clickable links and chapter formatting
  */
 function formatDescription(text: string): string {
@@ -72,12 +83,29 @@ function formatDescription(text: string): string {
   );
 
   // Format chapters: patterns like "00:00 - Title" or "00:00 Title"
+  // Add data-time attribute for click handling
   html = html.replace(
     /^(\d{1,2}:\d{2}(?::\d{2})?)\s*[-–—]?\s*(.+)$/gm,
-    '<span class="chapter"><span class="chapter-time">$1</span>$2</span>'
+    (_, time, title) => {
+      const seconds = parseTimestamp(time);
+      return `<span class="chapter" data-time="${seconds}"><span class="chapter-time">${time}</span>${title}</span>`;
+    }
   );
 
   return html;
+}
+
+/**
+ * Set up click handlers for chapters in description
+ */
+function setupChapterClickHandlers() {
+  const chapters = videoDescriptionEl.querySelectorAll(".chapter[data-time]");
+  chapters.forEach((chapter) => {
+    chapter.addEventListener("click", () => {
+      const time = parseFloat(chapter.getAttribute("data-time") || "0");
+      seekTo(time);
+    });
+  });
 }
 
 /**
@@ -355,6 +383,7 @@ app.ontoolresult = async (result) => {
       // Format description with links and chapters
       videoDescriptionEl.innerHTML = formatDescription(showVideo.description!);
       videoDescriptionEl.style.display = "block";
+      setupChapterClickHandlers();
     } else {
       videoDescriptionEl.style.display = "none";
     }

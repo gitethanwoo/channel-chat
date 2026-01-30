@@ -232,14 +232,25 @@ body {
 
 .video-description .chapter {
   display: block;
-  padding: 4px 0;
+  padding: 6px 0;
   color: var(--color-text-primary, #e5e5e5);
+  cursor: pointer;
+  transition: background 0.15s ease;
+  margin: 0 -8px;
+  padding-left: 8px;
+  padding-right: 8px;
+  border-radius: 4px;
+}
+
+.video-description .chapter:hover {
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .video-description .chapter-time {
   color: var(--color-accent-primary, #6b9fff);
   font-variant-numeric: tabular-nums;
   margin-right: 8px;
+  font-weight: 500;
 }
 
 .timestamp {

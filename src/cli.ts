@@ -3,6 +3,12 @@
  * CLI module for channel-chat using Commander and Chalk.
  */
 
+import { config } from 'dotenv';
+import { resolve } from 'path';
+
+// Load .env from project root
+config({ path: resolve(import.meta.dirname, '..', '.env') });
+
 import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
@@ -43,6 +49,7 @@ import {
   uploadToR2,
   indexContent,
   downloadVideo,
+  getIndexedVideos,
   CloudflareConfig,
   IndexRequest,
 } from './cloudflare-client.js';
@@ -84,7 +91,9 @@ async function indexVideoLocal(
       }
 
       if (spinner) spinner.text = `Downloading audio for ${videoId}...`;
-      const audioPath = await downloadAudio(videoId, tempDir);
+      const audioPath = await downloadAudio(videoId, tempDir, (msg) => {
+        if (spinner) spinner.text = `${videoId}: ${msg}`;
+      });
 
       if (spinner) spinner.text = `Transcribing ${videoId}...`;
       segments = await transcribeAudio(audioPath);
@@ -179,7 +188,9 @@ async function indexVideoCloudflare(
       }
 
       if (spinner) spinner.text = `Downloading audio for ${videoId}...`;
-      const audioPath = await downloadAudio(videoId, tempDir);
+      const audioPath = await downloadAudio(videoId, tempDir, (msg) => {
+        if (spinner) spinner.text = `${videoId}: ${msg}`;
+      });
 
       if (spinner) spinner.text = `Transcribing ${videoId}...`;
       segments = await transcribeAudio(audioPath);
@@ -201,7 +212,9 @@ async function indexVideoCloudflare(
 
     // Download video for R2 upload
     if (spinner) spinner.text = `Downloading video ${videoId}...`;
-    const videoPath = await downloadVideo(videoId, tempDir);
+    const videoPath = await downloadVideo(videoId, tempDir, 720, (msg) => {
+      if (spinner) spinner.text = `${videoId}: ${msg}`;
+    });
 
     // Upload video to R2
     if (spinner) spinner.text = `Uploading video to R2...`;
@@ -269,11 +282,42 @@ program
     useCloudflare = thisCommand.opts().cloudflare || false;
   });
 
+/**
+ * Run tasks with limited concurrency.
+ */
+async function runWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T, index: number) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = [];
+  let currentIndex = 0;
+
+  async function worker(): Promise<void> {
+    while (currentIndex < items.length) {
+      const index = currentIndex++;
+      const item = items[index];
+      results[index] = await fn(item, index);
+    }
+  }
+
+  const workers = Array(Math.min(concurrency, items.length))
+    .fill(null)
+    .map(() => worker());
+
+  await Promise.all(workers);
+  return results;
+}
+
 program
   .command('add')
   .description('Add a YouTube channel and index all its videos')
   .argument('<url>', 'YouTube channel URL (e.g., https://www.youtube.com/@channelname)')
-  .action(async (url: string) => {
+  .option('-l, --limit <number>', 'Maximum number of videos to index')
+  .option('-c, --concurrency <number>', 'Number of videos to process in parallel', '1')
+  .action(async (url: string, options: { limit?: string; concurrency: string }) => {
+    const limit = options.limit ? parseInt(options.limit, 10) : undefined;
+    const concurrency = Math.max(1, parseInt(options.concurrency, 10) || 1);
     if (useCloudflare) {
       // Cloudflare indexing path
       let config: CloudflareConfig;
@@ -294,40 +338,61 @@ program
         console.log(chalk.cyan('  Target: Cloudflare Worker'));
 
         spinner.start('Fetching video list...');
-        const videoIds = await getChannelVideos(channelInfo.url);
+        // Use channel ID directly for more reliable fetching
+        let videoIds = await getChannelVideos(channelInfo.channel_id);
         spinner.succeed(`Found ${videoIds.length} videos`);
 
-        // Note: For Cloudflare, we don't have a way to check existing videos without
-        // making API calls. For now, we'll process all videos.
-        // TODO: Add a /api/videos endpoint to check existing videos
-        console.log(chalk.cyan(`Indexing ${videoIds.length} videos to Cloudflare...`));
+        // Apply limit if specified
+        if (limit && limit < videoIds.length) {
+          console.log(chalk.yellow(`Limiting to ${limit} videos`));
+          videoIds = videoIds.slice(0, limit);
+        }
+
+        // Check which videos are already indexed
+        spinner.start('Checking for already indexed videos...');
+        const indexedVideos = await getIndexedVideos(config, channelInfo.channel_id);
+        const indexedSet = new Set(indexedVideos);
+        const newVideoIds = videoIds.filter(vid => !indexedSet.has(vid));
+        const skipped = videoIds.length - newVideoIds.length;
+        spinner.succeed(`Found ${indexedVideos.length} already indexed`);
+
+        if (skipped > 0) {
+          console.log(chalk.yellow(`Skipping ${skipped} already indexed videos`));
+        }
+
+        if (newVideoIds.length === 0) {
+          console.log(chalk.green('All videos already indexed!'));
+          return;
+        }
+
+        console.log(chalk.cyan(`Indexing ${newVideoIds.length} new videos to Cloudflare (concurrency: ${concurrency})...`));
 
         const tempDir = mkdtempSync(join(tmpdir(), 'channel-chat-'));
 
         try {
-          let indexed = 0;
-          let failed = 0;
-
-          for (let i = 0; i < videoIds.length; i++) {
-            const videoId = videoIds[i];
-            const progress = `[${i + 1}/${videoIds.length}]`;
+          const results = await runWithConcurrency(newVideoIds, concurrency, async (videoId, i) => {
+            const progress = `[${i + 1}/${newVideoIds.length}]`;
             const spinner = ora(`${progress} Indexing video...`).start();
 
             const success = await indexVideoCloudflare(videoId, channelInfo, config, tempDir, spinner);
 
             if (success) {
-              indexed++;
               spinner.succeed(`${progress} Indexed successfully`);
+              return true;
             } else {
-              failed++;
               spinner.fail(`${progress} Failed`);
+              return false;
             }
-          }
+          });
+
+          const indexed = results.filter(Boolean).length;
+          const failed = results.length - indexed;
 
           console.log('');
           console.log(chalk.bold('Indexing Complete (Cloudflare)'));
           console.log(chalk.green(`  Successfully indexed: ${indexed}`));
           console.log(chalk.red(`  Failed: ${failed}`));
+          console.log(chalk.yellow(`  Skipped (already indexed): ${skipped}`));
         } finally {
           rmSync(tempDir, { recursive: true, force: true });
         }
@@ -350,12 +415,22 @@ program
 
         console.log(chalk.green(`  ID: ${channelInfo.channel_id}`));
         console.log(chalk.green(`  URL: ${channelInfo.url}`));
+        if (channelInfo.avatar_url) {
+          console.log(chalk.green(`  Avatar: ${channelInfo.avatar_url.slice(0, 60)}...`));
+        }
 
-        upsertChannel(db, channelInfo.channel_id, channelInfo.name, channelInfo.url);
+        upsertChannel(db, channelInfo.channel_id, channelInfo.name, channelInfo.url, channelInfo.avatar_url);
 
         spinner.start('Fetching video list...');
-        const videoIds = await getChannelVideos(channelInfo.url);
+        // Use channel ID directly for more reliable fetching
+        let videoIds = await getChannelVideos(channelInfo.channel_id);
         spinner.succeed(`Found ${videoIds.length} videos`);
+
+        // Apply limit before filtering existing
+        if (limit && limit < videoIds.length) {
+          console.log(chalk.yellow(`Limiting to ${limit} videos`));
+          videoIds = videoIds.slice(0, limit);
+        }
 
         const newVideoIds = videoIds.filter(vid => !videoExists(db, vid));
         const skipped = videoIds.length - newVideoIds.length;
@@ -369,29 +444,28 @@ program
           return;
         }
 
-        console.log(chalk.cyan(`Indexing ${newVideoIds.length} new videos...`));
+        console.log(chalk.cyan(`Indexing ${newVideoIds.length} new videos (concurrency: ${concurrency})...`));
 
         const tempDir = mkdtempSync(join(tmpdir(), 'channel-chat-'));
 
         try {
-          let indexed = 0;
-          let failed = 0;
-
-          for (let i = 0; i < newVideoIds.length; i++) {
-            const videoId = newVideoIds[i];
+          const results = await runWithConcurrency(newVideoIds, concurrency, async (videoId, i) => {
             const progress = `[${i + 1}/${newVideoIds.length}]`;
             const spinner = ora(`${progress} Indexing video...`).start();
 
             const success = await indexVideoLocal(videoId, channelInfo.channel_id, db, tempDir, spinner);
 
             if (success) {
-              indexed++;
               spinner.succeed(`${progress} Indexed successfully`);
+              return true;
             } else {
-              failed++;
               spinner.fail(`${progress} Failed`);
+              return false;
             }
-          }
+          });
+
+          const indexed = results.filter(Boolean).length;
+          const failed = results.length - indexed;
 
           console.log('');
           console.log(chalk.bold('Indexing Complete'));
@@ -613,9 +687,9 @@ program
             const channelUrl = `https://www.youtube.com/channel/${channelId}`;
             try {
               const channelInfo = await getChannelInfo(channelUrl);
-              upsertChannel(db, channelInfo.channel_id, channelInfo.name, channelInfo.url);
+              upsertChannel(db, channelInfo.channel_id, channelInfo.name, channelInfo.url, channelInfo.avatar_url);
             } catch {
-              upsertChannel(db, channelId, 'Unknown Channel', channelUrl);
+              upsertChannel(db, channelId, 'Unknown Channel', channelUrl, null);
             }
           }
         }

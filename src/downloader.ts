@@ -48,6 +48,7 @@ export interface ChannelInfo {
   channel_id: string;
   name: string;
   url: string;
+  avatar_url: string | null;
 }
 
 export interface VideoInfo {
@@ -104,12 +105,19 @@ export async function getChannelInfo(url: string): Promise<ChannelInfo> {
     const identifier = extractChannelIdentifier(url);
 
     let channel;
-    if (identifier.type === 'handle') {
-      channel = await yt.getChannel(`@${identifier.value}`);
-    } else if (identifier.type === 'id') {
+    if (identifier.type === 'id') {
+      // Channel ID is most reliable
       channel = await yt.getChannel(identifier.value);
+    } else if (identifier.type === 'handle') {
+      // Try handle with @ prefix, fall back to resolving via search if needed
+      try {
+        channel = await yt.getChannel(`@${identifier.value}`);
+      } catch {
+        // Handle lookup failed, try without @
+        channel = await yt.getChannel(identifier.value);
+      }
     } else {
-      // Try as handle first, then as channel id
+      // Vanity URL - try as-is first, then with @
       try {
         channel = await yt.getChannel(identifier.value);
       } catch {
@@ -122,10 +130,20 @@ export async function getChannelInfo(url: string): Promise<ChannelInfo> {
     }
 
     const metadata = channel.metadata;
+
+    // Get best avatar URL
+    let avatarUrl: string | null = null;
+    if (metadata.avatar && Array.isArray(metadata.avatar) && metadata.avatar.length > 0) {
+      // Sort by width descending to get highest resolution
+      const sortedAvatars = [...metadata.avatar].sort((a: any, b: any) => (b.width || 0) - (a.width || 0));
+      avatarUrl = sortedAvatars[0].url || null;
+    }
+
     return {
       channel_id: metadata.external_id || '',
       name: metadata.title || '',
       url: metadata.vanity_channel_url || url,
+      avatar_url: avatarUrl,
     };
   } catch (error) {
     if (error instanceof ChannelNotFoundError) throw error;
@@ -135,23 +153,31 @@ export async function getChannelInfo(url: string): Promise<ChannelInfo> {
 
 /**
  * Get all video IDs from a YouTube channel.
+ * @param channelUrlOrId - Channel URL or channel ID (UC...)
  */
-export async function getChannelVideos(channelUrl: string): Promise<string[]> {
+export async function getChannelVideos(channelUrlOrId: string): Promise<string[]> {
   try {
     const yt = await getInnertube();
-    const identifier = extractChannelIdentifier(channelUrl);
 
     let channel;
-    if (identifier.type === 'handle') {
-      channel = await yt.getChannel(`@${identifier.value}`);
-    } else if (identifier.type === 'id') {
-      channel = await yt.getChannel(identifier.value);
+    // If it looks like a channel ID (starts with UC), use it directly
+    if (channelUrlOrId.startsWith('UC') && !channelUrlOrId.includes('/')) {
+      channel = await yt.getChannel(channelUrlOrId);
     } else {
-      channel = await yt.getChannel(identifier.value);
+      const identifier = extractChannelIdentifier(channelUrlOrId);
+
+      if (identifier.type === 'handle') {
+        // Handle lookups can be flaky, try channel ID format first if we can extract it
+        channel = await yt.getChannel(`@${identifier.value}`);
+      } else if (identifier.type === 'id') {
+        channel = await yt.getChannel(identifier.value);
+      } else {
+        channel = await yt.getChannel(identifier.value);
+      }
     }
 
     if (!channel) {
-      throw new ChannelNotFoundError(`Could not find channel: ${channelUrl}`);
+      throw new ChannelNotFoundError(`Could not find channel: ${channelUrlOrId}`);
     }
 
     // Get videos tab
@@ -268,8 +294,11 @@ except Exception as e:
 
   // Find Python with yt-dlp - use PYTHON_PATH env var or try common locations
   const pythonFromEnv = process.env.PYTHON_PATH || process.env.CHANNEL_CHAT_PYTHON;
+  // import.meta.dirname is the src/ directory, so parent has the .venv
+  const projectRoot = dirname(import.meta.dirname);
   const pythonPaths = [
     ...(pythonFromEnv ? [pythonFromEnv] : []),
+    join(projectRoot, '.venv', 'bin', 'python'),
     join(dirname(dirname(process.cwd())), '.venv', 'bin', 'python'),
     join(dirname(process.cwd()), '.venv', 'bin', 'python'),
     join(process.cwd(), '.venv', 'bin', 'python'),
@@ -313,25 +342,45 @@ except Exception as e:
 /**
  * Download audio from a video for transcription.
  * Uses yt-dlp as a fallback since youtubei.js audio download is complex.
+ * @param videoId - YouTube video ID
+ * @param outputDir - Directory to save the audio
+ * @param onProgress - Optional callback for progress updates
  */
-export async function downloadAudio(videoId: string, outputDir: string): Promise<string> {
+export async function downloadAudio(
+  videoId: string,
+  outputDir: string,
+  onProgress?: (message: string) => void
+): Promise<string> {
   const { spawn } = await import('child_process');
 
   await mkdir(outputDir, { recursive: true });
   const outputPath = join(outputDir, `${videoId}.mp3`);
 
-  // Check if yt-dlp is available
+  // Download audio only (much faster than full video + extract)
   return new Promise((resolve, reject) => {
     const ytdlp = spawn('yt-dlp', [
-      '--js-runtimes', 'node',
+      '-f', 'bestaudio',
       '-x',
       '--audio-format', 'mp3',
-      '--audio-quality', '192K',
+      '--audio-quality', '128K',
+      '--progress',
+      '--newline',
       '-o', outputPath,
       `https://www.youtube.com/watch?v=${videoId}`
     ]);
 
     let stderr = '';
+
+    ytdlp.stdout.on('data', (data) => {
+      const line = data.toString().trim();
+      if (onProgress && line.includes('%')) {
+        const match = line.match(/(\d+\.?\d*)%/);
+        if (match) {
+          onProgress(`Downloading audio: ${match[1]}%`);
+        }
+      }
+    });
+
     ytdlp.stderr.on('data', (data) => {
       stderr += data.toString();
     });

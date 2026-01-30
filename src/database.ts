@@ -13,6 +13,7 @@ export interface Channel {
   id: string;
   name: string;
   url: string;
+  avatar_url: string | null;
   indexed_at: string;
 }
 
@@ -125,6 +126,14 @@ export function initDb(db: Database.Database): void {
     db.exec('ALTER TABLE videos ADD COLUMN video_path TEXT');
   }
 
+  // Migration: add avatar_url column to channels if it doesn't exist
+  const avatarUrlExists = db.prepare(
+    "SELECT 1 FROM pragma_table_info('channels') WHERE name='avatar_url'"
+  ).get();
+  if (!avatarUrlExists) {
+    db.exec('ALTER TABLE channels ADD COLUMN avatar_url TEXT');
+  }
+
   // Create vector table if it doesn't exist
   const tableExists = db.prepare(
     "SELECT name FROM sqlite_master WHERE type='table' AND name='chunks_vec'"
@@ -149,17 +158,19 @@ export function upsertChannel(
   db: Database.Database,
   channelId: string,
   name: string,
-  url: string
+  url: string,
+  avatarUrl?: string | null
 ): void {
   const stmt = db.prepare(`
-    INSERT INTO channels (id, name, url, indexed_at)
-    VALUES (?, ?, ?, ?)
+    INSERT INTO channels (id, name, url, avatar_url, indexed_at)
+    VALUES (?, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET
       name = excluded.name,
       url = excluded.url,
+      avatar_url = excluded.avatar_url,
       indexed_at = excluded.indexed_at
   `);
-  stmt.run(channelId, name, url, new Date().toISOString());
+  stmt.run(channelId, name, url, avatarUrl ?? null, new Date().toISOString());
 }
 
 /**

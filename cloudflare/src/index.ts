@@ -518,6 +518,32 @@ async function handleChannelsRequest(env: Env): Promise<Response> {
 }
 
 /**
+ * Handle GET /api/videos - Return list of video IDs, optionally filtered by channel
+ */
+async function handleVideosRequest(env: Env, url: URL): Promise<Response> {
+  try {
+    const channelId = url.searchParams.get('channel_id');
+    let videos;
+    if (channelId) {
+      videos = await env.DB.prepare(
+        'SELECT id FROM videos WHERE channel_id = ?'
+      ).bind(channelId).all();
+    } else {
+      videos = await env.DB.prepare('SELECT id FROM videos').all();
+    }
+    // Return just the video IDs for efficient deduplication
+    const videoIds = videos.results.map((v) => v.id as string);
+    return jsonResponse(videoIds);
+  } catch (error) {
+    console.error('Videos request error:', error);
+    return errorResponse(
+      error instanceof Error ? error.message : 'Failed to fetch videos',
+      500
+    );
+  }
+}
+
+/**
  * Handle UI requests - Serve the embedded UI
  */
 function handleUIRequest(): Response {
@@ -909,6 +935,11 @@ export default {
       // Channels API
       if (path === '/api/channels' && method === 'GET') {
         return await handleChannelsRequest(env);
+      }
+
+      // Videos API - list video IDs (for deduplication)
+      if (path === '/api/videos' && method === 'GET') {
+        return await handleVideosRequest(env, url);
       }
 
       // UI serving

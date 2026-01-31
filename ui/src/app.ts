@@ -57,6 +57,12 @@ let currentSegmentIndex = -1;
 let currentDisplayMode: "inline" | "fullscreen" = "inline";
 let descriptionExpanded = false;
 
+// State for model context updates
+let currentVideoInfo: ShowVideoResult | null = null;
+let currentTranscriptSegments: TranscriptSegment[] = [];
+let lastContextUpdateTime = 0;
+const CONTEXT_UPDATE_INTERVAL = 3000; // Update every 3 seconds max
+
 /**
  * Parse timestamp string to seconds
  */
@@ -218,12 +224,18 @@ function renderPlayer(
   videoEl = document.getElementById("video-player") as HTMLVideoElement;
   videoEl.src = videoUrl;
 
-  // Set up time tracking for segment highlighting
+  // Set up time tracking for segment highlighting and model context
   videoEl.addEventListener("timeupdate", () => {
     if (videoEl) {
       updateCurrentSegment(videoEl.currentTime, segments);
+      updateModelContext();
     }
   });
+
+  // Also update context on pause/play
+  videoEl.addEventListener("pause", updateModelContext);
+  videoEl.addEventListener("play", updateModelContext);
+  videoEl.addEventListener("seeked", updateModelContext);
 
   // Seek to start time when ready
   videoEl.addEventListener(
@@ -255,6 +267,64 @@ function renderPlayer(
 
 // Create MCP App
 const app = new App({ name: "Channel Chat Player", version: "2.0.0" });
+
+/**
+ * Get recent transcript segments around current time (last 60 seconds)
+ */
+function getRecentTranscript(currentTime: number, segments: TranscriptSegment[]): string {
+  const windowStart = Math.max(0, currentTime - 60);
+  const windowEnd = currentTime + 5; // Include a few seconds ahead
+
+  const recentSegments = segments.filter(
+    seg => seg.start_time >= windowStart && seg.start_time <= windowEnd
+  );
+
+  if (recentSegments.length === 0) return "";
+
+  return recentSegments
+    .map(seg => `[${formatTimestamp(seg.start_time)}] ${seg.text}`)
+    .join("\n");
+}
+
+/**
+ * Update model context with current playback state
+ * This allows Claude to know what the user just watched
+ */
+function updateModelContext() {
+  if (!videoEl || !currentVideoInfo) return;
+
+  const caps = app.getHostCapabilities();
+  if (!caps?.updateModelContext) return;
+
+  const now = Date.now();
+  if (now - lastContextUpdateTime < CONTEXT_UPDATE_INTERVAL) return;
+  lastContextUpdateTime = now;
+
+  const currentTime = videoEl.currentTime;
+  const recentTranscript = getRecentTranscript(currentTime, currentTranscriptSegments);
+
+  // Build structured markdown with YAML frontmatter
+  const frontmatter = [
+    "---",
+    "tool: channel-chat-player",
+    `video: "${currentVideoInfo.video_title}"`,
+    `channel: "${currentVideoInfo.channel_name}"`,
+    `current-time: ${formatTimestamp(Math.floor(currentTime))}`,
+    `paused: ${videoEl.paused}`,
+    "---",
+  ].join("\n");
+
+  let markdown = frontmatter;
+  if (recentTranscript) {
+    markdown += `\n\n## Recent transcript (last 60 seconds)\n\n${recentTranscript}`;
+  }
+
+  app.updateModelContext({
+    content: [{ type: "text", text: markdown }],
+  }).catch((e: unknown) => {
+    console.warn("[Player] Failed to update model context:", e);
+  });
+}
 
 /**
  * Extract show_video result from tool output
@@ -371,6 +441,9 @@ app.ontoolresult = async (result) => {
     return;
   }
 
+  // Store video info for model context
+  currentVideoInfo = showVideo;
+
   // Update video info
   titleEl.textContent = showVideo.video_title;
   channelEl.textContent = showVideo.channel_name;
@@ -407,9 +480,12 @@ app.ontoolresult = async (result) => {
 
   if (!transcript || !transcript.segments.length) {
     // Fallback: show video without transcript
+    currentTranscriptSegments = [];
     renderPlayer(showVideo.video_url, showVideo.video_id, showVideo.start_time, []);
     transcriptSegmentsEl.innerHTML = '<div class="transcript-segment"><span class="segment-text">Transcript not available.</span></div>';
   } else {
+    // Store segments for model context
+    currentTranscriptSegments = transcript.segments;
     renderPlayer(showVideo.video_url, showVideo.video_id, showVideo.start_time, transcript.segments);
   }
 
@@ -428,8 +504,21 @@ app.onhostcontextchanged = handleHostContextChanged;
 // Set up expand toggle button
 expandBtn.addEventListener("click", toggleFullscreen);
 
-// Set up description toggle
-descriptionToggleEl.addEventListener("click", toggleDescriptionExpanded);
+// Set up description toggle - both button and entire context area
+descriptionToggleEl.addEventListener("click", (e) => {
+  e.stopPropagation();
+  toggleDescriptionExpanded();
+});
+
+// Make entire context area clickable in non-expanded mode
+videoContextEl.addEventListener("click", (e) => {
+  // Don't toggle if clicking a link or chapter
+  if ((e.target as HTMLElement).closest("a, .chapter")) return;
+  // Only toggle in non-expanded mode
+  if (currentDisplayMode !== "fullscreen") {
+    toggleDescriptionExpanded();
+  }
+});
 
 // Handle Escape key to exit fullscreen
 document.addEventListener("keydown", (e) => {

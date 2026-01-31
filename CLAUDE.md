@@ -37,8 +37,18 @@ npm run typecheck      # Type check only
 ```bash
 cd ui
 npm install
-npm run build          # Build for embedding in MCP server
+npm run build          # Build the UI bundle
 ```
+
+**Important**: After building the UI, you must regenerate the embedded HTML in the worker before deploying:
+
+```bash
+cd cloudflare
+npm run build:ui       # Embeds ui/dist/index.html into src/ui-html.ts
+npm run deploy
+```
+
+Full UI deploy pipeline: `cd ui && npm run build && cd ../cloudflare && npm run build:ui && npm run deploy`
 
 ### Linting & Tests
 

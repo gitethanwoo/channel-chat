@@ -8,11 +8,22 @@
 
 body {
   font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif);
-  background: var(--color-background-primary, #0a0a0a);
+  background: transparent;
   color: var(--color-text-primary, #fafafa);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* =====================================================
+   Wrapper - provides margin space
+   ===================================================== */
+.player-wrapper {
+  padding: 12px;
+}
+
+.player-wrapper:has(.video-player.expanded) {
+  padding: 0;
 }
 
 /* =====================================================
@@ -21,8 +32,11 @@ body {
 .video-player {
   display: flex;
   flex-direction: column;
-  padding: 16px;
+  padding: 0;
   max-width: 100%;
+  background: #141414;
+  border-radius: 16px;
+  overflow: hidden;
 }
 
 .main-content {
@@ -34,10 +48,15 @@ body {
 /* =====================================================
    Expanded Layout - Side by Side
    ===================================================== */
+.video-player.expanded {
+  border-radius: 0;
+}
+
 .video-player.expanded .main-content {
   display: grid;
   grid-template-columns: 1fr 340px;
   gap: 20px;
+  padding: 16px;
 }
 
 .video-player.expanded .transcript-panel {
@@ -68,7 +87,7 @@ body {
   justify-content: space-between;
   align-items: center;
   padding: 14px 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .video-header-left {
@@ -111,7 +130,7 @@ body {
 }
 
 .expand-btn:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: #303030;
   color: var(--color-text-primary, #fafafa);
   border-color: rgba(255, 255, 255, 0.15);
 }
@@ -137,8 +156,7 @@ body {
    Video Container
    ===================================================== */
 .video-container {
-  background: var(--color-background-secondary, #161616);
-  border-radius: 12px;
+  background: #1a1a1a;
   overflow: hidden;
 }
 
@@ -196,21 +214,36 @@ body {
    ===================================================== */
 .video-context {
   padding: 16px 20px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
+/* Clickable description area in collapsed mode */
+.video-player:not(.expanded) .video-context {
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.video-player:not(.expanded) .video-context:hover {
+  background: #303030;
+}
+
 .video-reason {
   font-size: 15px;
   line-height: 1.6;
-  color: var(--color-text-secondary, #aaa);
+  color: var(--color-text-secondary, #b0b0b0);
 }
 
 .video-reason strong {
-  color: var(--color-text-primary, #e5e5e5);
-  font-weight: 600;
+  color: #c9a0ff;
+  font-weight: 500;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  display: inline-block;
+  margin-right: 6px;
 }
 
 .video-description {
@@ -279,7 +312,7 @@ body {
 }
 
 .video-description .chapter:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: #303030;
 }
 
 .video-description .chapter-time {
@@ -324,7 +357,7 @@ body {
    Transcript Panel - Seekable Segments
    ===================================================== */
 .transcript-panel {
-  background: var(--color-background-secondary, #161616);
+  background: #1a1a1a;
   border-radius: 12px;
   overflow: hidden;
   display: flex;
@@ -341,7 +374,7 @@ body {
   justify-content: space-between;
   align-items: center;
   padding: 14px 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   flex-shrink: 0;
 }
 
@@ -371,7 +404,7 @@ body {
 }
 
 .transcript-segment:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: #303030;
 }
 
 .transcript-segment.active {

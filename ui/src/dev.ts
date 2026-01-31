@@ -244,8 +244,21 @@ function init() {
   // Set up expand button
   expandBtn.addEventListener("click", toggleExpanded);
 
-  // Set up description toggle
-  descriptionToggleEl.addEventListener("click", toggleDescriptionExpanded);
+  // Set up description toggle - both button and entire context area
+  descriptionToggleEl.addEventListener("click", (e) => {
+    e.stopPropagation();
+    toggleDescriptionExpanded();
+  });
+
+  // Make entire context area clickable in non-expanded mode
+  videoContextEl.addEventListener("click", (e) => {
+    // Don't toggle if clicking a link or chapter
+    if ((e.target as HTMLElement).closest("a, .chapter")) return;
+    // Only toggle in non-expanded mode
+    if (!isExpanded) {
+      toggleDescriptionExpanded();
+    }
+  });
 
   console.log("[Dev] UI initialized with mock data");
   console.log("[Dev] Click expand button to toggle side-by-side layout");

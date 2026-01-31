@@ -205,8 +205,12 @@ body {
 .video-reason {
   font-size: 15px;
   line-height: 1.6;
+  color: var(--color-text-secondary, #aaa);
+}
+
+.video-reason strong {
   color: var(--color-text-primary, #e5e5e5);
-  font-style: italic;
+  font-weight: 600;
 }
 
 .video-description {

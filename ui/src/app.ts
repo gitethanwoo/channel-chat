@@ -384,7 +384,7 @@ app.ontoolresult = async (result) => {
     videoContextEl.style.display = "block";
 
     if (hasReason) {
-      videoReasonEl.textContent = showVideo.reason;
+      videoReasonEl.innerHTML = `<strong>Why this:</strong> ${showVideo.reason}`;
       videoReasonEl.style.display = "block";
     } else {
       videoReasonEl.style.display = "none";

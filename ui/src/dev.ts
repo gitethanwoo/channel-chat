@@ -220,7 +220,7 @@ function init() {
     videoContextEl.style.display = "block";
 
     if (hasReason) {
-      videoReasonEl.textContent = result.reason;
+      videoReasonEl.innerHTML = `<strong>Why this:</strong> ${result.reason}`;
       videoReasonEl.style.display = "block";
     } else {
       videoReasonEl.style.display = "none";

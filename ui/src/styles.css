@@ -173,6 +173,13 @@ body {
   display: block;
 }
 
+.video-wrapper iframe {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border: 0;
+}
+
 /* Legacy thumbnail wrapper support */
 .thumbnail-wrapper {
   position: relative;

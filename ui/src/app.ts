@@ -222,37 +222,59 @@ function renderPlayer(
   startTime: number,
   segments: TranscriptSegment[]
 ) {
-  // Create video element
-  videoWrapper.innerHTML = `
-    <video id="video-player" controls autoplay playsinline></video>
-  `;
+  if (isOpenAIWidget) {
+    const startSeconds = Math.max(0, Math.floor(startTime));
+    const embedParams = new URLSearchParams({
+      start: String(startSeconds),
+      autoplay: "1",
+      rel: "0",
+      modestbranding: "1",
+      playsinline: "1",
+    });
+    const embedUrl = `https://www.youtube-nocookie.com/embed/${videoId}?${embedParams.toString()}`;
 
-  videoEl = document.getElementById("video-player") as HTMLVideoElement;
-  videoEl.src = videoUrl;
+    videoWrapper.innerHTML = `
+      <iframe
+        src="${embedUrl}"
+        title="YouTube video player"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        allowfullscreen
+      ></iframe>
+    `;
+    videoEl = null;
+  } else {
+    // Create video element
+    videoWrapper.innerHTML = `
+      <video id="video-player" controls autoplay playsinline></video>
+    `;
 
-  // Set up time tracking for segment highlighting and model context
-  videoEl.addEventListener("timeupdate", () => {
-    if (videoEl) {
-      updateCurrentSegment(videoEl.currentTime, segments);
-      updateModelContext();
-    }
-  });
+    videoEl = document.getElementById("video-player") as HTMLVideoElement;
+    videoEl.src = videoUrl;
 
-  // Also update context on pause/play
-  videoEl.addEventListener("pause", updateModelContext);
-  videoEl.addEventListener("play", updateModelContext);
-  videoEl.addEventListener("seeked", updateModelContext);
-
-  // Seek to start time when ready
-  videoEl.addEventListener(
-    "loadedmetadata",
-    () => {
-      if (videoEl && startTime > 0) {
-        videoEl.currentTime = startTime;
+    // Set up time tracking for segment highlighting and model context
+    videoEl.addEventListener("timeupdate", () => {
+      if (videoEl) {
+        updateCurrentSegment(videoEl.currentTime, segments);
+        updateModelContext();
       }
-    },
-    { once: true }
-  );
+    });
+
+    // Also update context on pause/play
+    videoEl.addEventListener("pause", updateModelContext);
+    videoEl.addEventListener("play", updateModelContext);
+    videoEl.addEventListener("seeked", updateModelContext);
+
+    // Seek to start time when ready
+    videoEl.addEventListener(
+      "loadedmetadata",
+      () => {
+        if (videoEl && startTime > 0) {
+          videoEl.currentTime = startTime;
+        }
+      },
+      { once: true }
+    );
+  }
 
   // Render transcript
   renderTranscript(segments);

@@ -29,7 +29,7 @@ const SERVER_VERSION = '1.0.0';
 
 // UI Resource constants for MCP App
 const PLAYER_RESOURCE_URI = 'ui://channel-chat/player.html';
-const OPENAI_PLAYER_RESOURCE_URI = 'ui://channel-chat/openai-player-v2.html';
+const OPENAI_PLAYER_RESOURCE_URI = 'ui://channel-chat/openai-player-v3.html';
 const RESOURCE_MIME_TYPE = 'text/html;profile=mcp-app';
 const OPENAI_RESOURCE_MIME_TYPE = 'text/html+skybridge';
 const RESOURCE_CSP = {
@@ -49,6 +49,15 @@ const RESOURCE_META = {
     connect_domains: ['https://channelmcp.com'],
     resource_domains: ['https://channelmcp.com'],
   },
+};
+const OPENAI_WIDGET_CSP = {
+  connect_domains: ['https://channelmcp.com'],
+  resource_domains: ['https://channelmcp.com'],
+  frame_domains: ['https://www.youtube-nocookie.com'],
+};
+const OPENAI_RESOURCE_META = {
+  ...RESOURCE_META,
+  'openai/widgetCSP': OPENAI_WIDGET_CSP,
 };
 
 // Video resource URI prefix
@@ -769,7 +778,7 @@ function handleMcpResourcesList(id: string | number | null): JsonRpcResponse {
         name: 'Video Player (OpenAI)',
         description: 'Interactive video player widget for OpenAI',
         mimeType: OPENAI_RESOURCE_MIME_TYPE,
-        _meta: RESOURCE_META,
+        _meta: OPENAI_RESOURCE_META,
       },
       {
         uriTemplate: 'video://clip/{videoId}?start={start}&duration={duration}',
@@ -841,13 +850,14 @@ async function handleMcpResourcesRead(
 
   // Handle UI resource
   if (params.uri === PLAYER_RESOURCE_URI || params.uri === OPENAI_PLAYER_RESOURCE_URI) {
+    const isOpenAi = params.uri === OPENAI_PLAYER_RESOURCE_URI;
     return jsonRpcSuccess(id, {
       contents: [
         {
           uri: params.uri,
-          mimeType: params.uri === OPENAI_PLAYER_RESOURCE_URI ? OPENAI_RESOURCE_MIME_TYPE : RESOURCE_MIME_TYPE,
+          mimeType: isOpenAi ? OPENAI_RESOURCE_MIME_TYPE : RESOURCE_MIME_TYPE,
           text: UI_HTML,
-          _meta: RESOURCE_META,
+          _meta: isOpenAi ? OPENAI_RESOURCE_META : RESOURCE_META,
         },
       ],
     });

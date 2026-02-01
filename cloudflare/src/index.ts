@@ -582,30 +582,8 @@ function parseRangeHeader(rangeHeader: string): { offset: number; length?: numbe
  */
 async function handleTranscriptRequest(videoId: string, env: Env): Promise<Response> {
   try {
-    const video = await getVideo(env.DB, videoId);
-    if (!video) {
-      return errorResponse('Video not found', 404);
-    }
-
-    if (!video.r2_transcript_key) {
-      return errorResponse('Transcript not available', 404);
-    }
-
-    const object = await env.R2.get(video.r2_transcript_key);
-
-    if (!object) {
-      return errorResponse('Transcript file not found in storage', 404);
-    }
-
-    const headers = new Headers();
-    headers.set('Content-Type', object.httpMetadata?.contentType || 'application/json');
-
-    return withCors(
-      new Response(object.body, {
-        status: 200,
-        headers,
-      })
-    );
+    const transcriptData = await getVideoTranscript(env, videoId);
+    return jsonResponse(transcriptData);
   } catch (error) {
     console.error('Transcript request error:', error);
     return errorResponse(

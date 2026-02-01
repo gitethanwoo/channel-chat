@@ -231,7 +231,7 @@ function renderPlayer(
       modestbranding: "1",
       playsinline: "1",
     });
-    const embedUrl = `https://www.youtube-nocookie.com/embed/${videoId}?${embedParams.toString()}`;
+    const embedUrl = `https://www.youtube.com/embed/${videoId}?${embedParams.toString()}`;
 
     videoWrapper.innerHTML = `
       <iframe

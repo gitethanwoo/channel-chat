@@ -29,7 +29,7 @@ const SERVER_VERSION = '1.0.0';
 
 // UI Resource constants for MCP App
 const PLAYER_RESOURCE_URI = 'ui://channel-chat/player.html';
-const OPENAI_PLAYER_RESOURCE_URI = 'ui://channel-chat/openai-player-v3.html';
+const OPENAI_PLAYER_RESOURCE_URI = 'ui://channel-chat/openai-player-v4.html';
 const RESOURCE_MIME_TYPE = 'text/html;profile=mcp-app';
 const OPENAI_RESOURCE_MIME_TYPE = 'text/html+skybridge';
 const RESOURCE_CSP = {
@@ -53,7 +53,7 @@ const RESOURCE_META = {
 const OPENAI_WIDGET_CSP = {
   connect_domains: ['https://channelmcp.com'],
   resource_domains: ['https://channelmcp.com'],
-  frame_domains: ['https://www.youtube-nocookie.com'],
+  frame_domains: ['https://www.youtube.com'],
 };
 const OPENAI_RESOURCE_META = {
   ...RESOURCE_META,

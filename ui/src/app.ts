@@ -507,6 +507,23 @@ async function renderShowVideo(showVideo: ShowVideoResult) {
     videoContextEl.style.display = "none";
   }
 
+  if (isOpenAIWidget) {
+    renderPlayer(showVideo.video_url, showVideo.video_id, showVideo.start_time, []);
+    playerEl.classList.remove("loading");
+
+    void fetchTranscript(showVideo.transcript_uri).then((transcript) => {
+      if (!transcript || !transcript.segments.length) {
+        currentTranscriptSegments = [];
+        transcriptSegmentsEl.innerHTML = '<div class="transcript-segment"><span class="segment-text">Transcript not available.</span></div>';
+        return;
+      }
+
+      currentTranscriptSegments = transcript.segments;
+      renderTranscript(transcript.segments);
+    });
+    return;
+  }
+
   // Fetch full transcript
   const transcript = await fetchTranscript(showVideo.transcript_uri);
 

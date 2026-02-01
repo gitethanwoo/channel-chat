@@ -41,6 +41,9 @@ interface TranscriptData {
 
 interface OpenAIWidgetGlobals {
   toolOutput?: ShowVideoResult;
+  displayMode?: "inline" | "fullscreen" | "pip";
+  requestDisplayMode?: (params: { mode: "inline" | "fullscreen" | "pip" }) => Promise<{ mode: "inline" | "fullscreen" | "pip" }>;
+  onDisplayModeChange?: (handler: (event: { displayMode: "inline" | "fullscreen" | "pip" }) => void) => void;
 }
 
 interface YouTubePlayer {
@@ -521,8 +524,13 @@ async function fetchTranscript(transcriptUri: string): Promise<TranscriptData | 
 async function toggleFullscreen() {
   const newMode = currentDisplayMode === "fullscreen" ? "inline" : "fullscreen";
   try {
-    const result = await app.requestDisplayMode({ mode: newMode });
-    currentDisplayMode = result.mode as "inline" | "fullscreen";
+    if (isOpenAIWidget && openaiGlobals?.requestDisplayMode) {
+      const result = await openaiGlobals.requestDisplayMode({ mode: newMode });
+      currentDisplayMode = result.mode === "pip" ? "fullscreen" : result.mode;
+    } else {
+      const result = await app.requestDisplayMode({ mode: newMode });
+      currentDisplayMode = result.mode as "inline" | "fullscreen";
+    }
     playerEl.classList.toggle("expanded", currentDisplayMode === "fullscreen");
     expandBtn.title = currentDisplayMode === "fullscreen" ? "Collapse view" : "Expand view";
     console.info("[Player] Display mode changed:", currentDisplayMode);
@@ -703,6 +711,18 @@ function handleOpenAIWidget() {
 
   window.addEventListener("openai:set_globals", applyToolOutput);
   applyToolOutput();
+
+  if (openaiGlobals?.displayMode) {
+    currentDisplayMode = openaiGlobals.displayMode === "pip" ? "fullscreen" : openaiGlobals.displayMode;
+    playerEl.classList.toggle("expanded", currentDisplayMode === "fullscreen");
+    expandBtn.title = currentDisplayMode === "fullscreen" ? "Collapse view" : "Expand view";
+  }
+
+  openaiGlobals?.onDisplayModeChange?.((event) => {
+    currentDisplayMode = event.displayMode === "pip" ? "fullscreen" : event.displayMode;
+    playerEl.classList.toggle("expanded", currentDisplayMode === "fullscreen");
+    expandBtn.title = currentDisplayMode === "fullscreen" ? "Collapse view" : "Expand view";
+  });
 }
 
 // Connect to host

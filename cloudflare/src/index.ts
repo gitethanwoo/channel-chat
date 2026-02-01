@@ -31,8 +31,6 @@ const SERVER_VERSION = '1.0.0';
 const PLAYER_RESOURCE_URI = 'ui://channel-chat/player.html';
 const RESOURCE_MIME_TYPE = 'text/html;profile=mcp-app';
 const RESOURCE_CSP = {
-  // Allow YouTube embeds (using nocookie domain for privacy/fewer restrictions)
-  frameDomains: ['https://www.youtube-nocookie.com'],
   // Allow loading media in the sandbox (HTTPS streaming + optional data/blob media URLs)
   resourceDomains: ['https://channelmcp.com', 'data:', 'blob:'],
   // Allow API calls to our domain
@@ -43,6 +41,12 @@ const RESOURCE_META = {
   ui: { csp: RESOURCE_CSP },
   // Legacy shape (some hosts read this)
   csp: RESOURCE_CSP,
+  // OpenAI widget metadata (snake_case keys)
+  'openai/widgetDomain': 'https://channelmcp.com',
+  'openai/widgetCSP': {
+    connect_domains: ['https://channelmcp.com'],
+    resource_domains: ['https://channelmcp.com'],
+  },
 };
 
 // Video resource URI prefix

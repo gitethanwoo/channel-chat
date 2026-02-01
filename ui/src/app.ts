@@ -712,6 +712,9 @@ function handleOpenAIWidget() {
   window.addEventListener("openai:set_globals", applyToolOutput);
   applyToolOutput();
 
+  expandBtn.classList.add("available");
+  expandBtn.title = currentDisplayMode === "fullscreen" ? "Collapse view" : "Expand view";
+
   if (openaiGlobals?.displayMode) {
     currentDisplayMode = openaiGlobals.displayMode === "pip" ? "fullscreen" : openaiGlobals.displayMode;
     playerEl.classList.toggle("expanded", currentDisplayMode === "fullscreen");

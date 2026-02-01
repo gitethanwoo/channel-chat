@@ -43,6 +43,32 @@ interface OpenAIWidgetGlobals {
   toolOutput?: ShowVideoResult;
 }
 
+interface YouTubePlayer {
+  seekTo(seconds: number, allowSeekAhead: boolean): void;
+  playVideo(): void;
+  getCurrentTime(): number;
+}
+
+interface YouTubeNamespace {
+  Player: new (
+    elementId: string | HTMLElement,
+    options: {
+      videoId: string;
+      playerVars?: Record<string, string | number>;
+      events?: {
+        onReady?: (event: { target: YouTubePlayer }) => void;
+      };
+    }
+  ) => YouTubePlayer;
+}
+
+declare global {
+  interface Window {
+    YT?: YouTubeNamespace;
+    onYouTubeIframeAPIReady?: () => void;
+  }
+}
+
 // DOM Elements
 const playerEl = document.querySelector(".video-player") as HTMLElement;
 const titleEl = document.getElementById("video-title") as HTMLElement;
@@ -59,6 +85,8 @@ const descriptionToggleEl = document.getElementById("description-toggle") as HTM
 let videoEl: HTMLVideoElement | null = null;
 let embedIframe: HTMLIFrameElement | null = null;
 let currentEmbedVideoId: string | null = null;
+let ytPlayer: YouTubePlayer | null = null;
+let ytPollId: number | null = null;
 let currentSegmentIndex = -1;
 let currentDisplayMode: "inline" | "fullscreen" = "inline";
 let descriptionExpanded = false;
@@ -159,6 +187,47 @@ function buildEmbedUrl(videoId: string, startTime: number): string {
   return `https://www.youtube.com/embed/${videoId}?${embedParams.toString()}`;
 }
 
+function ensureYouTubeApi(): Promise<void> {
+  if (window.YT && window.YT.Player) {
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve) => {
+    const existingScript = document.getElementById("yt-iframe-api");
+    if (!existingScript) {
+      const script = document.createElement("script");
+      script.id = "yt-iframe-api";
+      script.src = "https://www.youtube.com/iframe_api";
+      document.head.appendChild(script);
+    }
+
+    const previousReady = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => {
+      if (previousReady) {
+        previousReady();
+      }
+      resolve();
+    };
+  });
+}
+
+function startYouTubePolling(segments: TranscriptSegment[]) {
+  if (ytPollId !== null) {
+    window.clearInterval(ytPollId);
+  }
+
+  ytPollId = window.setInterval(() => {
+    if (!ytPlayer) return;
+    updateCurrentSegment(ytPlayer.getCurrentTime(), segments);
+  }, 1000);
+}
+
+function stopYouTubePolling() {
+  if (ytPollId === null) return;
+  window.clearInterval(ytPollId);
+  ytPollId = null;
+}
+
 /**
  * Seek video to a specific time
  */
@@ -166,6 +235,11 @@ function seekTo(time: number) {
   if (videoEl) {
     videoEl.currentTime = time;
     videoEl.play();
+    return;
+  }
+  if (ytPlayer) {
+    ytPlayer.seekTo(time, true);
+    ytPlayer.playVideo();
     return;
   }
   if (embedIframe && currentEmbedVideoId) {
@@ -242,21 +316,33 @@ function renderPlayer(
   segments: TranscriptSegment[]
 ) {
   if (isOpenAIWidget) {
-    const embedUrl = buildEmbedUrl(videoId, startTime);
-
-    videoWrapper.innerHTML = `
-      <iframe
-        id="video-embed"
-        src="${embedUrl}"
-        title="YouTube video player"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-        allowfullscreen
-      ></iframe>
-    `;
+    videoWrapper.innerHTML = `<div id="yt-player"></div>`;
 
     videoEl = null;
-    embedIframe = document.getElementById("video-embed") as HTMLIFrameElement | null;
+    embedIframe = null;
     currentEmbedVideoId = videoId;
+
+    stopYouTubePolling();
+    void ensureYouTubeApi().then(() => {
+      const yt = window.YT;
+      if (!yt) return;
+      ytPlayer = new yt.Player("yt-player", {
+        videoId,
+        playerVars: {
+          start: Math.max(0, Math.floor(startTime)),
+          autoplay: 1,
+          rel: 0,
+          modestbranding: 1,
+          playsinline: 1,
+        },
+        events: {
+          onReady: (event) => {
+            event.target.playVideo();
+          },
+        },
+      });
+      startYouTubePolling(segments);
+    });
   } else {
     videoWrapper.innerHTML = `
       <video id="video-player" controls autoplay playsinline></video>
@@ -264,6 +350,8 @@ function renderPlayer(
 
     embedIframe = null;
     currentEmbedVideoId = null;
+    ytPlayer = null;
+    stopYouTubePolling();
     videoEl = document.getElementById("video-player") as HTMLVideoElement;
     videoEl.src = videoUrl;
 

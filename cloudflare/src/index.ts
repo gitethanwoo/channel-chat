@@ -29,14 +29,14 @@ const SERVER_VERSION = '1.0.0';
 
 // UI Resource constants for MCP App
 const PLAYER_RESOURCE_URI = 'ui://channel-chat/player.html';
-const OPENAI_PLAYER_RESOURCE_URI = 'ui://channel-chat/openai-player-v7.html';
+const OPENAI_PLAYER_RESOURCE_URI = 'ui://channel-chat/openai-player-v8.html';
 const RESOURCE_MIME_TYPE = 'text/html;profile=mcp-app';
 const OPENAI_RESOURCE_MIME_TYPE = 'text/html+skybridge';
 const RESOURCE_CSP = {
   // Allow YouTube embeds
   frameDomains: ['https://www.youtube.com'],
   // Allow loading media in the sandbox (HTTPS streaming + optional data/blob media URLs)
-  resourceDomains: ['https://channelmcp.com', 'data:', 'blob:'],
+  resourceDomains: ['https://channelmcp.com', 'data:', 'blob:', 'https://www.youtube.com'],
   // Allow API calls to our domain
   connectDomains: ['https://channelmcp.com'],
 };
@@ -54,7 +54,7 @@ const RESOURCE_META = {
 };
 const OPENAI_WIDGET_CSP = {
   connect_domains: ['https://channelmcp.com'],
-  resource_domains: ['https://channelmcp.com'],
+  resource_domains: ['https://channelmcp.com', 'https://www.youtube.com'],
   frame_domains: ['https://www.youtube.com'],
 };
 const OPENAI_RESOURCE_META = {

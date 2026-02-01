@@ -57,6 +57,8 @@ const videoDescriptionEl = document.getElementById("video-description") as HTMLE
 const descriptionToggleEl = document.getElementById("description-toggle") as HTMLButtonElement;
 
 let videoEl: HTMLVideoElement | null = null;
+let embedIframe: HTMLIFrameElement | null = null;
+let currentEmbedVideoId: string | null = null;
 let currentSegmentIndex = -1;
 let currentDisplayMode: "inline" | "fullscreen" = "inline";
 let descriptionExpanded = false;
@@ -145,6 +147,18 @@ function formatTimestamp(seconds: number): string {
   return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 
+function buildEmbedUrl(videoId: string, startTime: number): string {
+  const startSeconds = Math.max(0, Math.floor(startTime));
+  const embedParams = new URLSearchParams({
+    start: String(startSeconds),
+    autoplay: "1",
+    rel: "0",
+    modestbranding: "1",
+    playsinline: "1",
+  });
+  return `https://www.youtube.com/embed/${videoId}?${embedParams.toString()}`;
+}
+
 /**
  * Seek video to a specific time
  */
@@ -152,6 +166,10 @@ function seekTo(time: number) {
   if (videoEl) {
     videoEl.currentTime = time;
     videoEl.play();
+    return;
+  }
+  if (embedIframe && currentEmbedVideoId) {
+    embedIframe.src = buildEmbedUrl(currentEmbedVideoId, time);
   }
 }
 
@@ -207,6 +225,7 @@ function renderTranscript(segments: TranscriptSegment[]) {
 
     segmentEl.addEventListener("click", () => {
       seekTo(segment.start_time);
+      updateCurrentSegment(segment.start_time, segments);
     });
 
     transcriptSegmentsEl.appendChild(segmentEl);
@@ -222,59 +241,21 @@ function renderPlayer(
   startTime: number,
   segments: TranscriptSegment[]
 ) {
-  if (isOpenAIWidget) {
-    const startSeconds = Math.max(0, Math.floor(startTime));
-    const embedParams = new URLSearchParams({
-      start: String(startSeconds),
-      autoplay: "1",
-      rel: "0",
-      modestbranding: "1",
-      playsinline: "1",
-    });
-    const embedUrl = `https://www.youtube.com/embed/${videoId}?${embedParams.toString()}`;
+  const embedUrl = buildEmbedUrl(videoId, startTime);
 
-    videoWrapper.innerHTML = `
-      <iframe
-        src="${embedUrl}"
-        title="YouTube video player"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-        allowfullscreen
-      ></iframe>
-    `;
-    videoEl = null;
-  } else {
-    // Create video element
-    videoWrapper.innerHTML = `
-      <video id="video-player" controls autoplay playsinline></video>
-    `;
+  videoWrapper.innerHTML = `
+    <iframe
+      id="video-embed"
+      src="${embedUrl}"
+      title="YouTube video player"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+      allowfullscreen
+    ></iframe>
+  `;
 
-    videoEl = document.getElementById("video-player") as HTMLVideoElement;
-    videoEl.src = videoUrl;
-
-    // Set up time tracking for segment highlighting and model context
-    videoEl.addEventListener("timeupdate", () => {
-      if (videoEl) {
-        updateCurrentSegment(videoEl.currentTime, segments);
-        updateModelContext();
-      }
-    });
-
-    // Also update context on pause/play
-    videoEl.addEventListener("pause", updateModelContext);
-    videoEl.addEventListener("play", updateModelContext);
-    videoEl.addEventListener("seeked", updateModelContext);
-
-    // Seek to start time when ready
-    videoEl.addEventListener(
-      "loadedmetadata",
-      () => {
-        if (videoEl && startTime > 0) {
-          videoEl.currentTime = startTime;
-        }
-      },
-      { once: true }
-    );
-  }
+  videoEl = null;
+  embedIframe = document.getElementById("video-embed") as HTMLIFrameElement | null;
+  currentEmbedVideoId = videoId;
 
   // Render transcript
   renderTranscript(segments);

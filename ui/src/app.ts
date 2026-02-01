@@ -363,6 +363,10 @@ async function fetchTranscript(transcriptUri: string): Promise<TranscriptData | 
       const transcriptUrl = `https://channelmcp.com/transcript/${transcriptId}`;
       console.info("[Player] Fetching transcript:", transcriptUrl);
       const response = await fetch(transcriptUrl);
+      if (!response.ok) {
+        console.error("[Player] Transcript request failed:", response.status);
+        return null;
+      }
       return await response.json() as TranscriptData;
     }
 

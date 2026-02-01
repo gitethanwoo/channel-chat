@@ -241,21 +241,56 @@ function renderPlayer(
   startTime: number,
   segments: TranscriptSegment[]
 ) {
-  const embedUrl = buildEmbedUrl(videoId, startTime);
+  if (isOpenAIWidget) {
+    const embedUrl = buildEmbedUrl(videoId, startTime);
 
-  videoWrapper.innerHTML = `
-    <iframe
-      id="video-embed"
-      src="${embedUrl}"
-      title="YouTube video player"
-      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-      allowfullscreen
-    ></iframe>
-  `;
+    videoWrapper.innerHTML = `
+      <iframe
+        id="video-embed"
+        src="${embedUrl}"
+        title="YouTube video player"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        allowfullscreen
+      ></iframe>
+    `;
 
-  videoEl = null;
-  embedIframe = document.getElementById("video-embed") as HTMLIFrameElement | null;
-  currentEmbedVideoId = videoId;
+    videoEl = null;
+    embedIframe = document.getElementById("video-embed") as HTMLIFrameElement | null;
+    currentEmbedVideoId = videoId;
+  } else {
+    videoWrapper.innerHTML = `
+      <video id="video-player" controls autoplay playsinline></video>
+    `;
+
+    embedIframe = null;
+    currentEmbedVideoId = null;
+    videoEl = document.getElementById("video-player") as HTMLVideoElement;
+    videoEl.src = videoUrl;
+
+    // Set up time tracking for segment highlighting and model context
+    videoEl.addEventListener("timeupdate", () => {
+      if (videoEl) {
+        updateCurrentSegment(videoEl.currentTime, segments);
+        updateModelContext();
+      }
+    });
+
+    // Also update context on pause/play
+    videoEl.addEventListener("pause", updateModelContext);
+    videoEl.addEventListener("play", updateModelContext);
+    videoEl.addEventListener("seeked", updateModelContext);
+
+    // Seek to start time when ready
+    videoEl.addEventListener(
+      "loadedmetadata",
+      () => {
+        if (videoEl && startTime > 0) {
+          videoEl.currentTime = startTime;
+        }
+      },
+      { once: true }
+    );
+  }
 
   // Render transcript
   renderTranscript(segments);

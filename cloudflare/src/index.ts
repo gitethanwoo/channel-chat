@@ -29,7 +29,9 @@ const SERVER_VERSION = '1.0.0';
 
 // UI Resource constants for MCP App
 const PLAYER_RESOURCE_URI = 'ui://channel-chat/player.html';
+const OPENAI_PLAYER_RESOURCE_URI = 'ui://channel-chat/openai-player.html';
 const RESOURCE_MIME_TYPE = 'text/html;profile=mcp-app';
+const OPENAI_RESOURCE_MIME_TYPE = 'text/html+skybridge';
 const RESOURCE_CSP = {
   // Allow loading media in the sandbox (HTTPS streaming + optional data/blob media URLs)
   resourceDomains: ['https://channelmcp.com', 'data:', 'blob:'],
@@ -131,6 +133,7 @@ const MCP_TOOLS = [
         resourceUri: PLAYER_RESOURCE_URI,
       },
       'ui/resourceUri': PLAYER_RESOURCE_URI,
+      'openai/outputTemplate': OPENAI_PLAYER_RESOURCE_URI,
     },
   },
   {
@@ -762,6 +765,13 @@ function handleMcpResourcesList(id: string | number | null): JsonRpcResponse {
         _meta: RESOURCE_META,
       },
       {
+        uri: OPENAI_PLAYER_RESOURCE_URI,
+        name: 'Video Player (OpenAI)',
+        description: 'Interactive video player widget for OpenAI',
+        mimeType: OPENAI_RESOURCE_MIME_TYPE,
+        _meta: RESOURCE_META,
+      },
+      {
         uriTemplate: 'video://clip/{videoId}?start={start}&duration={duration}',
         name: 'Video Clip',
         description: 'Video clip resource. Returns full video as base64 blob (start/duration used for UI seeking).',
@@ -830,12 +840,12 @@ async function handleMcpResourcesRead(
   }
 
   // Handle UI resource
-  if (params.uri === PLAYER_RESOURCE_URI) {
+  if (params.uri === PLAYER_RESOURCE_URI || params.uri === OPENAI_PLAYER_RESOURCE_URI) {
     return jsonRpcSuccess(id, {
       contents: [
         {
-          uri: PLAYER_RESOURCE_URI,
-          mimeType: RESOURCE_MIME_TYPE,
+          uri: params.uri,
+          mimeType: params.uri === OPENAI_PLAYER_RESOURCE_URI ? OPENAI_RESOURCE_MIME_TYPE : RESOURCE_MIME_TYPE,
           text: UI_HTML,
           _meta: RESOURCE_META,
         },
@@ -954,7 +964,12 @@ async function handleMcpToolsCall(
         const startTime = typeof toolArgs.start_time === 'number' ? toolArgs.start_time : 0;
         const reason = typeof toolArgs.reason === 'string' ? toolArgs.reason : undefined;
         const result = await showVideo(env, videoId, startTime, reason, baseUrl);
-        return jsonRpcSuccess(id, result);
+        return jsonRpcSuccess(id, {
+          ...result,
+          _meta: {
+            'openai/outputTemplate': OPENAI_PLAYER_RESOURCE_URI,
+          },
+        });
       }
 
       case 'list_indexed_channels': {

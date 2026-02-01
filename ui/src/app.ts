@@ -39,6 +39,10 @@ interface TranscriptData {
   segments: TranscriptSegment[];
 }
 
+interface OpenAIWidgetGlobals {
+  toolOutput?: ShowVideoResult;
+}
+
 // DOM Elements
 const playerEl = document.querySelector(".video-player") as HTMLElement;
 const titleEl = document.getElementById("video-title") as HTMLElement;
@@ -56,6 +60,8 @@ let videoEl: HTMLVideoElement | null = null;
 let currentSegmentIndex = -1;
 let currentDisplayMode: "inline" | "fullscreen" = "inline";
 let descriptionExpanded = false;
+const openaiGlobals = (window as unknown as { openai?: OpenAIWidgetGlobals }).openai ?? null;
+const isOpenAIWidget = openaiGlobals !== null;
 
 // State for model context updates
 let currentVideoInfo: ShowVideoResult | null = null;
@@ -352,6 +358,18 @@ function extractShowVideoResult(result: CallToolResult): ShowVideoResult | null 
  */
 async function fetchTranscript(transcriptUri: string): Promise<TranscriptData | null> {
   try {
+    if (isOpenAIWidget) {
+      const transcriptId = transcriptUri.replace(/^transcript:\/\//, "");
+      const transcriptUrl = `https://channelmcp.com/transcript/${transcriptId}`;
+      console.info("[Player] Fetching transcript:", transcriptUrl);
+      const response = await fetch(transcriptUrl);
+      if (!response.ok) {
+        console.error("[Player] Transcript request failed:", response.status);
+        return null;
+      }
+      return await response.json() as TranscriptData;
+    }
+
     console.info("[Player] Fetching transcript:", transcriptUri);
     const resourceResult = await app.request(
       { method: "resources/read", params: { uri: transcriptUri } },
@@ -430,16 +448,8 @@ app.ontoolinput = (params) => {
   playerEl.classList.add("loading");
 };
 
-app.ontoolresult = async (result) => {
-  console.info("[Player] Tool result:", result);
-
-  const showVideo = extractShowVideoResult(result);
-  if (!showVideo) {
-    titleEl.textContent = "Error";
-    transcriptSegmentsEl.innerHTML = '<div class="transcript-segment"><span class="segment-text">Could not parse video data.</span></div>';
-    playerEl.classList.remove("loading");
-    return;
-  }
+async function renderShowVideo(showVideo: ShowVideoResult) {
+  playerEl.classList.add("loading");
 
   // Store video info for model context
   currentVideoInfo = showVideo;
@@ -490,6 +500,20 @@ app.ontoolresult = async (result) => {
   }
 
   playerEl.classList.remove("loading");
+}
+
+app.ontoolresult = async (result) => {
+  console.info("[Player] Tool result:", result);
+
+  const showVideo = extractShowVideoResult(result);
+  if (!showVideo) {
+    titleEl.textContent = "Error";
+    transcriptSegmentsEl.innerHTML = '<div class="transcript-segment"><span class="segment-text">Could not parse video data.</span></div>';
+    playerEl.classList.remove("loading");
+    return;
+  }
+
+  await renderShowVideo(showVideo);
 };
 
 app.ontoolcancelled = () => {
@@ -527,11 +551,26 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
+function handleOpenAIWidget() {
+  const applyToolOutput = () => {
+    const globals = (window as unknown as { openai?: OpenAIWidgetGlobals }).openai;
+    if (!globals?.toolOutput) return;
+    void renderShowVideo(globals.toolOutput);
+  };
+
+  window.addEventListener("openai:set_globals", applyToolOutput);
+  applyToolOutput();
+}
+
 // Connect to host
-app.connect().then(() => {
-  console.info("[Player] Connected to host");
-  const ctx = app.getHostContext();
-  if (ctx) {
-    handleHostContextChanged(ctx);
-  }
-});
+if (isOpenAIWidget) {
+  handleOpenAIWidget();
+} else {
+  app.connect().then(() => {
+    console.info("[Player] Connected to host");
+    const ctx = app.getHostContext();
+    if (ctx) {
+      handleHostContextChanged(ctx);
+    }
+  });
+}

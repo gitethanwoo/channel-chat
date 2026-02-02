@@ -21,6 +21,7 @@ import {
 } from './vectorize';
 import { searchTranscripts, listIndexedChannels, getStats as getMcpStats, showVideo, getVideoTranscript } from './mcp-handler';
 import { UI_HTML } from './ui-html';
+import { LANDING_HTML } from './landing-html';
 
 // MCP Protocol constants
 const MCP_PROTOCOL_VERSION = '2024-11-05';
@@ -693,6 +694,18 @@ function handleUIRequest(): Response {
 }
 
 /**
+ * Handle landing page requests - Serve lightweight HTML at /
+ */
+function handleLandingRequest(): Response {
+  return withCors(
+    new Response(LANDING_HTML, {
+      status: 200,
+      headers: { 'Content-Type': 'text/html; charset=utf-8' },
+    })
+  );
+}
+
+/**
  * Build a JSON-RPC success response
  */
 function jsonRpcSuccess(id: string | number | null, result: unknown): JsonRpcResponse {
@@ -1141,10 +1154,11 @@ export default {
       }
 
       // UI serving
-      if (path === '/ui' || path === '/') {
-        if (method === 'GET') {
-          return handleUIRequest();
-        }
+      if (path === '/' && method === 'GET') {
+        return handleLandingRequest();
+      }
+      if (path === '/ui' && method === 'GET') {
+        return handleUIRequest();
       }
 
       // 404 for unmatched routes

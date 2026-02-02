@@ -203,6 +203,8 @@ In Cloudflare Dashboard:
 | `/api/videos` | GET | List indexed video IDs |
 | `/api/videos/:id` | DELETE | Delete a video |
 | `/api/stats` | GET | Get statistics |
+| `/` | GET | Landing page |
+| `/ui` | GET | Video player UI |
 
 ## Data Flow
 

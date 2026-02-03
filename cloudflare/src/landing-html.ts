@@ -20,19 +20,22 @@ export const LANDING_HTML = `<!doctype html>
 
     <style>
       :root {
-        --bg: #faf7f0;
+        --bg: #fbf8f1;
         --paper: #fffdf7;
         --ink: #121212;
         --muted: rgba(18, 18, 18, 0.72);
         --line: rgba(18, 18, 18, 0.14);
-        --shadow: 0 28px 80px rgba(18, 18, 18, 0.14);
+        --hairline: rgba(18, 18, 18, 0.08);
+        --shadow: 0 30px 90px rgba(18, 18, 18, 0.14);
+        --shadowTight: 0 16px 42px rgba(18, 18, 18, 0.14);
         --radius: 18px;
-        --max: 1080px;
+        --radiusSm: 14px;
+        --max: 1120px;
 
         --teal: #0b766c;
         --teal2: #0a5e57;
-        --citrus: #f59e0b;
-        --rose: #f97316;
+        --amber: #f59e0b;
+        --inkOnTeal: #f2fffd;
 
         --serif: "Fraunces", ui-serif, Georgia, serif;
         --sans: "Figtree", ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto,
@@ -53,19 +56,19 @@ export const LANDING_HTML = `<!doctype html>
         margin: 0;
         color: var(--ink);
         background: radial-gradient(
-            1200px 680px at 12% 12%,
-            rgba(11, 118, 108, 0.14),
-            transparent 58%
-          ),
-          radial-gradient(
-            980px 640px at 78% 18%,
-            rgba(245, 158, 11, 0.16),
+            1200px 720px at 10% 12%,
+            rgba(11, 118, 108, 0.16),
             transparent 60%
           ),
           radial-gradient(
-            880px 520px at 60% 82%,
-            rgba(249, 115, 22, 0.08),
-            transparent 58%
+            980px 620px at 78% 16%,
+            rgba(245, 158, 11, 0.18),
+            transparent 60%
+          ),
+          radial-gradient(
+            900px 700px at 70% 84%,
+            rgba(11, 118, 108, 0.08),
+            transparent 62%
           ),
           var(--bg);
         font-family: var(--sans);
@@ -77,9 +80,20 @@ export const LANDING_HTML = `<!doctype html>
         position: fixed;
         inset: 0;
         pointer-events: none;
-        opacity: 0.12;
+        opacity: 0.10;
         mix-blend-mode: multiply;
         background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='.35'/%3E%3C/svg%3E");
+      }
+
+      .grid {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        opacity: 0.55;
+        background-image: linear-gradient(to right, rgba(18, 18, 18, 0.04) 1px, transparent 1px),
+          linear-gradient(to bottom, rgba(18, 18, 18, 0.04) 1px, transparent 1px);
+        background-size: 44px 44px;
+        mask-image: radial-gradient(900px 620px at 30% 14%, black 50%, transparent 72%);
       }
 
       a {
@@ -104,7 +118,7 @@ export const LANDING_HTML = `<!doctype html>
         z-index: 3;
         backdrop-filter: blur(10px);
         background: rgba(250, 247, 240, 0.78);
-        border-bottom: 1px solid rgba(18, 18, 18, 0.06);
+        border-bottom: 1px solid var(--hairline);
         transition: border-color 160ms ease, background 160ms ease;
       }
       header.scrolled {
@@ -122,7 +136,7 @@ export const LANDING_HTML = `<!doctype html>
 
       .brand {
         display: flex;
-        gap: 10px;
+        gap: 12px;
         align-items: baseline;
       }
 
@@ -162,14 +176,13 @@ export const LANDING_HTML = `<!doctype html>
       }
 
       main {
-        padding: 44px 0 76px;
+        padding: 48px 0 84px;
       }
 
       .hero {
         display: grid;
-        grid-template-columns: 1.08fr 0.92fr;
-        gap: 22px;
-        align-items: start;
+        grid-template-columns: 1fr;
+        gap: 18px;
       }
 
       @media (max-width: 920px) {
@@ -181,8 +194,8 @@ export const LANDING_HTML = `<!doctype html>
       h1 {
         margin: 0;
         font-family: var(--serif);
-        font-size: clamp(38px, 5vw, 56px);
-        line-height: 1.04;
+        font-size: clamp(42px, 6vw, 68px);
+        line-height: 1.01;
         letter-spacing: -0.02em;
       }
 
@@ -220,10 +233,10 @@ export const LANDING_HTML = `<!doctype html>
       }
 
       .btn.primary {
-        background: linear-gradient(180deg, rgba(11, 118, 108, 0.95), var(--teal2));
-        border-color: rgba(7, 49, 46, 0.38);
-        color: #f6fffd;
-        box-shadow: 0 18px 34px rgba(11, 118, 108, 0.22);
+        background: linear-gradient(180deg, rgba(11, 118, 108, 0.98), var(--teal2));
+        border-color: rgba(7, 49, 46, 0.42);
+        color: var(--inkOnTeal);
+        box-shadow: 0 22px 44px rgba(11, 118, 108, 0.24);
       }
 
       .btn:hover {
@@ -233,61 +246,12 @@ export const LANDING_HTML = `<!doctype html>
         transform: translateY(0px);
       }
 
-      .card {
-        background: rgba(255, 253, 247, 0.72);
-        border: 1px solid rgba(18, 18, 18, 0.16);
-        border-radius: var(--radius);
-        box-shadow: var(--shadow);
-        overflow: hidden;
-        position: relative;
-      }
-
-      .card .pad {
-        padding: 18px;
-      }
-
       .kicker {
         font-family: var(--mono);
         font-size: 12px;
         letter-spacing: 0.1em;
         text-transform: uppercase;
         color: var(--muted);
-      }
-
-      .bullets {
-        margin: 10px 0 0;
-        padding: 0 0 0 18px;
-        color: var(--muted);
-      }
-
-      .bullets li {
-        margin: 8px 0;
-      }
-
-      .section {
-        margin-top: 26px;
-      }
-
-      .section h2 {
-        margin: 0 0 10px;
-        font-size: 18px;
-        letter-spacing: -0.01em;
-      }
-
-      .video {
-        position: relative;
-        width: 100%;
-        aspect-ratio: 16 / 9;
-        background: rgba(0, 0, 0, 0.06);
-        border-top: 1px solid rgba(18, 18, 18, 0.16);
-      }
-
-      .video iframe {
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-        border: 0;
       }
 
       footer {
@@ -308,7 +272,7 @@ export const LANDING_HTML = `<!doctype html>
       .terminal {
         margin-top: 10px;
         border-radius: 14px;
-        border: 1px solid rgba(18, 18, 18, 0.18);
+        border: 1px solid rgba(18, 18, 18, 0.16);
         background: rgba(18, 18, 18, 0.93);
         color: rgba(255, 255, 255, 0.9);
         padding: 12px 12px 14px;
@@ -342,6 +306,164 @@ export const LANDING_HTML = `<!doctype html>
         font-size: 12.5px;
         line-height: 1.45;
         white-space: pre-wrap;
+      }
+
+      .layout {
+        margin-top: 24px;
+        display: grid;
+        grid-template-columns: 1.12fr 0.88fr;
+        gap: 18px;
+        align-items: start;
+      }
+
+      @media (max-width: 980px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .frame {
+        position: relative;
+        border-radius: var(--radius);
+        border: 1px solid rgba(18, 18, 18, 0.16);
+        background: rgba(255, 253, 247, 0.74);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+
+      .frame::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background: radial-gradient(
+          720px 420px at 18% 10%,
+          rgba(11, 118, 108, 0.14),
+          transparent 62%
+        );
+      }
+
+      .frameHead {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px 16px;
+        border-bottom: 1px solid rgba(18, 18, 18, 0.12);
+        background: rgba(255, 255, 255, 0.52);
+      }
+
+      .frameHead .title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 800;
+        letter-spacing: -0.01em;
+      }
+
+      .chipRow {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+
+      .chip {
+        font-family: var(--mono);
+        font-size: 12px;
+        color: rgba(18, 18, 18, 0.78);
+        border: 1px solid rgba(18, 18, 18, 0.14);
+        background: rgba(255, 255, 255, 0.55);
+        padding: 6px 10px;
+        border-radius: 999px;
+      }
+
+      .chip.emph {
+        border-color: rgba(11, 118, 108, 0.38);
+        color: rgba(7, 49, 46, 0.95);
+        box-shadow: 0 12px 22px rgba(11, 118, 108, 0.12);
+      }
+
+      .videoFrame {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 16 / 9;
+        background: rgba(0, 0, 0, 0.08);
+      }
+
+      .videoFrame iframe {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        border: 0;
+      }
+
+      .stamp {
+        position: absolute;
+        left: 14px;
+        bottom: 14px;
+        transform: rotate(-2deg);
+        border-radius: 14px;
+        padding: 10px 12px;
+        border: 1px solid rgba(18, 18, 18, 0.18);
+        background: rgba(255, 255, 255, 0.78);
+        box-shadow: var(--shadowTight);
+        backdrop-filter: blur(8px);
+      }
+
+      .stamp b {
+        display: block;
+        font-family: var(--mono);
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .stamp span {
+        display: block;
+        color: var(--muted);
+        font-size: 13px;
+        margin-top: 4px;
+      }
+
+      .sidebar {
+        display: grid;
+        gap: 12px;
+      }
+
+      .panel {
+        border-radius: var(--radius);
+        border: 1px solid rgba(18, 18, 18, 0.16);
+        background: rgba(255, 253, 247, 0.62);
+        box-shadow: var(--shadowTight);
+        padding: 16px;
+      }
+
+      .panel h2 {
+        margin: 10px 0 0;
+        font-size: 18px;
+        letter-spacing: -0.01em;
+      }
+
+      .panel ul {
+        margin: 10px 0 0;
+        padding: 0 0 0 18px;
+        color: var(--muted);
+      }
+
+      .panel li {
+        margin: 8px 0;
+      }
+
+      .linksRow {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        align-items: center;
+        margin-top: 10px;
+        color: var(--muted);
+        font-weight: 650;
       }
 
       .reveal {
@@ -380,6 +502,7 @@ export const LANDING_HTML = `<!doctype html>
   </head>
 
   <body>
+    <div class="grid" aria-hidden="true"></div>
     <header id="top">
       <div class="wrap">
         <nav>
@@ -388,7 +511,7 @@ export const LANDING_HTML = `<!doctype html>
             <div class="tag">MCP + YouTube search</div>
           </div>
           <div class="navlinks">
-            <a href="#video">Build video</a>
+            <a href="#build">Build video</a>
             <a href="/ui">Player</a>
           </div>
         </nav>
@@ -408,48 +531,72 @@ export const LANDING_HTML = `<!doctype html>
           </p>
 
           <div class="ctaRow reveal d3">
-            <a class="btn primary" href="https://www.youtube.com/watch?v=apAQ9YaV4cs">
-              Watch how it was built
-            </a>
-            <a class="btn" href="#video">Watch on this page</a>
+            <a class="btn primary" href="#build">Watch the build video</a>
             <a class="btn" href="/ui">Open the player</a>
+            <a class="btn" href="https://www.youtube.com/watch?v=apAQ9YaV4cs">YouTube</a>
           </div>
         </div>
+      </section>
 
-        <div class="card reveal d2">
-          <div class="pad">
-            <div class="kicker">What You Get</div>
-            <ul class="bullets">
-              <li>Ask in plain language: “Where do they explain X?”</li>
-              <li>Search by meaning across a whole channel</li>
-              <li>Jump from query to relevant videos (and why)</li>
-              <li>Designed for Claude + MCP tool workflows</li>
-            </ul>
-
-            <div class="section">
-              <h2>Quick Start</h2>
-              <div style="color: var(--muted)">
-                Use the CLI to index a channel, then query via MCP.
-              </div>
-              <div class="terminal" role="group" aria-label="Quick start commands">
-                <div class="dots" aria-hidden="true">
-                  <div class="dot r"></div>
-                  <div class="dot y"></div>
-                  <div class="dot g"></div>
-                </div>
-                <pre>$ channel-chat add "https://youtube.com/@channelname"
-$ channel-chat search "where do they explain vector databases?"</pre>
-              </div>
+      <section id="build" class="layout">
+        <div class="frame reveal d2">
+          <div class="frameHead">
+            <div class="title">
+              <span class="kicker">Build video</span>
+              <span style="font-family: var(--sans); font-weight: 800">How this works</span>
+            </div>
+            <div class="chipRow">
+              <span class="chip emph">MCP</span>
+              <span class="chip">Workers</span>
+              <span class="chip">R2</span>
+              <span class="chip">Vectorize</span>
             </div>
           </div>
-
-          <div id="video" class="video" aria-label="Build video">
+          <div class="videoFrame" aria-label="Build video">
             <iframe
               src="https://www.youtube-nocookie.com/embed/apAQ9YaV4cs?rel=0"
               title="How channel-chat was built"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
               allowfullscreen
             ></iframe>
+            <div class="stamp" aria-hidden="true">
+              <b>Build log</b>
+              <span>Watch the full walkthrough, then try the player.</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="sidebar reveal d3">
+          <div class="panel">
+            <div class="kicker">What You Get</div>
+            <h2>Find the right moment fast</h2>
+            <ul>
+              <li>Ask: “Where do they explain X?” and get pointed to the best segments</li>
+              <li>Search by meaning across an entire channel (not exact-match keywords)</li>
+              <li>Jump from query to relevant videos with timestamps and context</li>
+            </ul>
+          </div>
+
+          <div class="panel">
+            <div class="kicker">Quick Start</div>
+            <h2>Index once, query forever</h2>
+            <div style="color: var(--muted); margin-top: 8px">
+              Use the CLI to index a channel, then query via MCP.
+            </div>
+            <div class="terminal" role="group" aria-label="Quick start commands">
+              <div class="dots" aria-hidden="true">
+                <div class="dot r"></div>
+                <div class="dot y"></div>
+                <div class="dot g"></div>
+              </div>
+              <pre>$ channel-chat add "https://youtube.com/@channelname"
+$ channel-chat search "where do they explain vector databases?"</pre>
+            </div>
+            <div class="linksRow">
+              <a href="/ui">Open player</a>
+              <span aria-hidden="true">•</span>
+              <a href="https://www.youtube.com/watch?v=apAQ9YaV4cs">Watch on YouTube</a>
+            </div>
           </div>
         </div>
       </section>

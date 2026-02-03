@@ -30,7 +30,8 @@ export const LANDING_HTML = `<!doctype html>
         --shadowTight: 0 16px 42px rgba(18, 18, 18, 0.14);
         --radius: 18px;
         --radiusSm: 14px;
-        --max: 1120px;
+        --max: 1240px;
+        --gutter: clamp(22px, 4vw, 40px);
 
         --teal: #0b766c;
         --teal2: #0a5e57;
@@ -109,7 +110,7 @@ export const LANDING_HTML = `<!doctype html>
       .wrap {
         max-width: var(--max);
         margin: 0 auto;
-        padding: 24px;
+        padding: var(--gutter);
       }
 
       header {
@@ -176,13 +177,13 @@ export const LANDING_HTML = `<!doctype html>
       }
 
       main {
-        padding: 48px 0 84px;
+        padding: 64px 0 120px;
       }
 
       .hero {
         display: grid;
         grid-template-columns: 1fr;
-        gap: 18px;
+        gap: 24px;
       }
 
       @media (max-width: 920px) {
@@ -200,9 +201,10 @@ export const LANDING_HTML = `<!doctype html>
       }
 
       .lede {
-        margin: 14px 0 0;
+        margin: 16px 0 0;
         color: var(--muted);
-        font-size: 18px;
+        font-size: 19px;
+        line-height: 1.55;
         max-width: 64ch;
       }
 
@@ -212,7 +214,7 @@ export const LANDING_HTML = `<!doctype html>
       }
 
       .ctaRow {
-        margin-top: 18px;
+        margin-top: 22px;
         display: flex;
         flex-wrap: wrap;
         gap: 10px;
@@ -224,7 +226,7 @@ export const LANDING_HTML = `<!doctype html>
         align-items: center;
         gap: 10px;
         border-radius: 999px;
-        padding: 11px 14px;
+        padding: 12px 16px;
         font-weight: 750;
         border: 1px solid var(--line);
         background: rgba(255, 255, 255, 0.62);
@@ -309,10 +311,10 @@ export const LANDING_HTML = `<!doctype html>
       }
 
       .layout {
-        margin-top: 24px;
+        margin-top: 34px;
         display: grid;
         grid-template-columns: 1.12fr 0.88fr;
-        gap: 18px;
+        gap: 22px;
         align-items: start;
       }
 
@@ -349,7 +351,7 @@ export const LANDING_HTML = `<!doctype html>
         align-items: center;
         justify-content: space-between;
         gap: 12px;
-        padding: 14px 16px;
+        padding: 16px 18px;
         border-bottom: 1px solid rgba(18, 18, 18, 0.12);
         background: rgba(255, 255, 255, 0.52);
       }
@@ -429,7 +431,7 @@ export const LANDING_HTML = `<!doctype html>
 
       .sidebar {
         display: grid;
-        gap: 12px;
+        gap: 14px;
       }
 
       .panel {
@@ -437,12 +439,12 @@ export const LANDING_HTML = `<!doctype html>
         border: 1px solid rgba(18, 18, 18, 0.16);
         background: rgba(255, 253, 247, 0.62);
         box-shadow: var(--shadowTight);
-        padding: 16px;
+        padding: 18px 18px 20px;
       }
 
       .panel h2 {
         margin: 10px 0 0;
-        font-size: 18px;
+        font-size: 19px;
         letter-spacing: -0.01em;
       }
 

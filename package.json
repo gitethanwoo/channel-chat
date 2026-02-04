@@ -1,0 +1,13 @@
+{
+  "name": "channel-chat-repo",
+  "private": true,
+  "scripts": {
+    "prepare": "husky install",
+    "lint": "npm --prefix cloudflare run lint",
+    "typecheck": "npm --prefix cloudflare run typecheck",
+    "test": "npm --prefix cloudflare test"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7"
+  }
+}

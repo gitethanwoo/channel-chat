@@ -8,11 +8,14 @@ interface EmbeddingResponse {
   pooling?: "mean" | "cls";
 }
 
+export type AiLike = Pick<Ai, "run">;
+export type VectorizeIndexLike = Pick<VectorizeIndex, "upsert" | "query" | "deleteByIds">;
+
 /**
  * Generate an embedding for a single text using Workers AI
  * Model: @cf/baai/bge-base-en-v1.5 (768 dimensions)
  */
-export async function generateEmbedding(ai: Ai, text: string): Promise<number[]> {
+export async function generateEmbedding(ai: AiLike, text: string): Promise<number[]> {
   const response = (await ai.run("@cf/baai/bge-base-en-v1.5", {
     text: [text],
   })) as EmbeddingResponse;
@@ -28,7 +31,7 @@ export async function generateEmbedding(ai: Ai, text: string): Promise<number[]>
  * Generate embeddings for multiple texts using Workers AI
  * Workers AI supports batching for efficiency
  */
-export async function generateEmbeddings(ai: Ai, texts: string[]): Promise<number[][]> {
+export async function generateEmbeddings(ai: AiLike, texts: string[]): Promise<number[][]> {
   const response = (await ai.run("@cf/baai/bge-base-en-v1.5", {
     text: texts,
   })) as EmbeddingResponse;
@@ -48,7 +51,7 @@ export async function generateEmbeddings(ai: Ai, texts: string[]): Promise<numbe
  * @param metadata - Optional metadata (e.g., video_id for filtering)
  */
 export async function upsertVector(
-  vectorize: VectorizeIndex,
+  vectorize: VectorizeIndexLike,
   id: string,
   embedding: number[],
   metadata?: Record<string, string>
@@ -68,7 +71,7 @@ export async function upsertVector(
  * @param vectors - Array of vectors with id, embedding, and optional metadata
  */
 export async function upsertVectors(
-  vectorize: VectorizeIndex,
+  vectorize: VectorizeIndexLike,
   vectors: Array<{ id: string; embedding: number[]; metadata?: Record<string, string> }>
 ): Promise<void> {
   const vectorizeVectors = vectors.map((v) => ({
@@ -87,7 +90,7 @@ export async function upsertVectors(
  * @returns Array of matches with id and similarity score
  */
 export async function searchVectors(
-  vectorize: VectorizeIndex,
+  vectorize: VectorizeIndexLike,
   queryEmbedding: number[],
   limit: number
 ): Promise<Array<{ id: string; score: number }>> {
@@ -107,6 +110,6 @@ export async function searchVectors(
  * @param vectorize - The Vectorize index binding
  * @param ids - Array of vector IDs to delete
  */
-export async function deleteVectors(vectorize: VectorizeIndex, ids: string[]): Promise<void> {
+export async function deleteVectors(vectorize: VectorizeIndexLike, ids: string[]): Promise<void> {
   await vectorize.deleteByIds(ids);
 }

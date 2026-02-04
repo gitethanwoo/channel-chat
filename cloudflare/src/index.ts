@@ -1077,7 +1077,7 @@ async function handleMCPRequest(request: Request, env: Env): Promise<Response> {
  * Main worker fetch handler
  */
 export default {
-  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  async fetch(request: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     const method = request.method;
     const path = url.pathname;

@@ -12,16 +12,28 @@
     "db:migrate:local": "wrangler d1 execute channel-chat --local --file=./schema.sql",
     "vectorize:create": "wrangler vectorize create channel-chat-embeddings --dimensions=768 --metric=cosine",
     "r2:create": "wrangler r2 bucket create channel-chat-media",
+    "lint": "eslint \"src/**/*.ts\"",
     "typecheck": "tsc --noEmit",
-    "build:ui": "node scripts/build-ui.cjs"
+    "build:ui": "node scripts/build-ui.cjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:db": "vitest run src/test/db.test.ts",
+    "test:vectorize": "vitest run src/test/vectorize.test.ts",
+    "test:integration": "vitest run src/test/integration.test.ts",
+    "test:mcp": "vitest run src/test/mcp.test.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
     "workers-mcp": "^0.0.10"
   },
   "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.8.0",
     "@cloudflare/workers-types": "^4.20241205.0",
+    "@eslint/js": "^9.39.0",
+    "eslint": "^9.39.0",
     "typescript": "^5.7.2",
+    "typescript-eslint": "^8.54.0",
+    "vitest": "~3.0.0",
     "wrangler": "^3.99.0"
   }
 }

@@ -489,6 +489,254 @@ export const LANDING_HTML = `<!doctype html>
         }
       }
 
+      /* ── How It Works ── */
+      .steps {
+        margin-top: 80px;
+        padding: 0;
+      }
+
+      .steps h2 {
+        font-family: var(--serif);
+        font-size: clamp(28px, 4vw, 40px);
+        letter-spacing: -0.02em;
+        margin: 0;
+        text-align: center;
+      }
+
+      .steps .subtitle {
+        text-align: center;
+        color: var(--muted);
+        font-size: 17px;
+        margin: 10px 0 0;
+      }
+
+      .stepsGrid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 18px;
+        margin-top: 32px;
+      }
+
+      @media (max-width: 720px) {
+        .stepsGrid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .step {
+        border-radius: var(--radius);
+        border: 1px solid rgba(18, 18, 18, 0.12);
+        background: rgba(255, 253, 247, 0.62);
+        box-shadow: var(--shadowTight);
+        padding: 24px 22px 26px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .step::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, var(--teal), rgba(11, 118, 108, 0.2));
+      }
+
+      .step .num {
+        font-family: var(--serif);
+        font-size: 44px;
+        font-weight: 800;
+        color: rgba(11, 118, 108, 0.16);
+        line-height: 1;
+        margin-bottom: 8px;
+      }
+
+      .step .icon {
+        font-size: 28px;
+        margin-bottom: 8px;
+        display: block;
+      }
+
+      .step h3 {
+        margin: 0;
+        font-size: 18px;
+        letter-spacing: -0.01em;
+      }
+
+      .step p {
+        margin: 8px 0 0;
+        color: var(--muted);
+        font-size: 15px;
+        line-height: 1.5;
+      }
+
+      .stepArrow {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: rgba(18, 18, 18, 0.18);
+        font-size: 24px;
+      }
+
+      @media (max-width: 720px) {
+        .stepArrow {
+          transform: rotate(90deg);
+        }
+      }
+
+      /* ── Demo ── */
+      .demo {
+        margin-top: 80px;
+      }
+
+      .demo h2 {
+        font-family: var(--serif);
+        font-size: clamp(28px, 4vw, 40px);
+        letter-spacing: -0.02em;
+        margin: 0;
+        text-align: center;
+      }
+
+      .demo .subtitle {
+        text-align: center;
+        color: var(--muted);
+        font-size: 17px;
+        margin: 10px 0 0;
+      }
+
+      .demoTerminal {
+        margin: 32px auto 0;
+        max-width: 720px;
+        border-radius: var(--radius);
+        border: 1px solid rgba(18, 18, 18, 0.18);
+        background: rgba(18, 18, 18, 0.95);
+        color: rgba(255, 255, 255, 0.92);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+
+      .demoTerminal .termBar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 16px;
+        background: rgba(255, 255, 255, 0.06);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .demoTerminal .termBar .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        opacity: 0.85;
+      }
+      .demoTerminal .termBar .dot.r { background: #ef4444; }
+      .demoTerminal .termBar .dot.y { background: #f59e0b; }
+      .demoTerminal .termBar .dot.g { background: #22c55e; }
+
+      .demoTerminal .termBar .termTitle {
+        font-family: var(--mono);
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.45);
+        margin-left: 8px;
+      }
+
+      .demoTerminal pre {
+        margin: 0;
+        padding: 18px 20px 22px;
+        font-family: var(--mono);
+        font-size: 13px;
+        line-height: 1.55;
+        white-space: pre-wrap;
+        overflow-x: auto;
+      }
+
+      .demoTerminal .prompt { color: #22c55e; }
+      .demoTerminal .cmd { color: #e2e8f0; font-weight: 600; }
+      .demoTerminal .dim { color: rgba(255, 255, 255, 0.38); }
+      .demoTerminal .result { color: rgba(255, 255, 255, 0.82); }
+      .demoTerminal .url { color: #67e8f9; }
+      .demoTerminal .highlight { color: #fbbf24; }
+      .demoTerminal .tealText { color: #5eead4; }
+
+      /* ── Open Source CTA ── */
+      .ossSection {
+        margin-top: 80px;
+        text-align: center;
+      }
+
+      .ossBanner {
+        border-radius: var(--radius);
+        border: 1px solid rgba(11, 118, 108, 0.22);
+        background: linear-gradient(
+          170deg,
+          rgba(11, 118, 108, 0.08) 0%,
+          rgba(245, 158, 11, 0.06) 100%
+        );
+        box-shadow: var(--shadow);
+        padding: 48px 32px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .ossBanner::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background: radial-gradient(
+          600px 400px at 50% 0%,
+          rgba(11, 118, 108, 0.1),
+          transparent 70%
+        );
+      }
+
+      .ossBanner h2 {
+        font-family: var(--serif);
+        font-size: clamp(28px, 4vw, 40px);
+        letter-spacing: -0.02em;
+        margin: 0;
+        position: relative;
+      }
+
+      .ossBanner .ossDesc {
+        color: var(--muted);
+        font-size: 17px;
+        margin: 12px auto 0;
+        max-width: 52ch;
+        position: relative;
+        line-height: 1.55;
+      }
+
+      .ossBadges {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 24px;
+        position: relative;
+      }
+
+      .badge {
+        font-family: var(--mono);
+        font-size: 12px;
+        color: rgba(18, 18, 18, 0.72);
+        border: 1px solid rgba(18, 18, 18, 0.14);
+        background: rgba(255, 255, 255, 0.65);
+        padding: 7px 12px;
+        border-radius: 999px;
+      }
+
+      .ossCta {
+        margin-top: 28px;
+        display: flex;
+        justify-content: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        position: relative;
+      }
+
       @media (prefers-reduced-motion: reduce) {
         .reveal {
           opacity: 1;
@@ -599,6 +847,94 @@ $ channel-chat search "where do they explain vector databases?"</pre>
               <span aria-hidden="true">•</span>
               <a href="https://www.youtube.com/watch?v=apAQ9YaV4cs">Watch on YouTube</a>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- How It Works -->
+      <section class="steps">
+        <div class="kicker" style="text-align:center">How It Works</div>
+        <h2>Three steps to searchable video</h2>
+        <p class="subtitle">From raw channel to semantic knowledge base in minutes.</p>
+
+        <div class="stepsGrid">
+          <div class="step">
+            <div class="num">1</div>
+            <h3>Index a channel</h3>
+            <p>Point the CLI at any YouTube channel or video. It downloads subtitles, chunks them into passages, and generates vector embeddings automatically.</p>
+          </div>
+
+          <div class="step">
+            <div class="num">2</div>
+            <h3>Search by meaning</h3>
+            <p>Ask natural-language questions via MCP or the CLI. Vector similarity finds the most relevant segments across every indexed video.</p>
+          </div>
+
+          <div class="step">
+            <div class="num">3</div>
+            <h3>Jump to the moment</h3>
+            <p>Each result links to the exact timestamp. Click through to YouTube or use the built-in player to watch the clip with full context.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- See It In Action -->
+      <section class="demo">
+        <div class="kicker" style="text-align:center">See It In Action</div>
+        <h2>Real query, real results</h2>
+        <p class="subtitle">Here's what a search looks like end to end.</p>
+
+        <div class="demoTerminal">
+          <div class="termBar">
+            <div class="dot r"></div>
+            <div class="dot y"></div>
+            <div class="dot g"></div>
+            <span class="termTitle">channel-chat</span>
+          </div>
+          <pre>
+<span class="prompt">$</span> <span class="cmd">channel-chat search "how do vector embeddings work?"</span>
+
+<span class="dim">Searching across 142 indexed videos...</span>
+
+<span class="tealText">Result 1</span> <span class="dim">|</span> <span class="highlight">score: 0.94</span>
+<span class="result">  "Vector embeddings map words into a high-dimensional space
+   where similar meanings cluster together. We use cosine
+   similarity to measure how close two passages are..."</span>
+<span class="dim">  ──</span>
+<span class="url">  https://youtube.com/watch?v=dQw4w9...&t=847</span>
+<span class="dim">  Embeddings Deep Dive · 14:07</span>
+
+<span class="tealText">Result 2</span> <span class="dim">|</span> <span class="highlight">score: 0.89</span>
+<span class="result">  "The key insight is that embeddings capture semantic
+   relationships. 'King minus man plus woman' gives you
+   something close to 'queen' in embedding space..."</span>
+<span class="dim">  ──</span>
+<span class="url">  https://youtube.com/watch?v=xK3r9...&t=312</span>
+<span class="dim">  ML Fundamentals #4 · 5:12</span>
+</pre>
+        </div>
+      </section>
+
+      <!-- Open Source CTA -->
+      <section class="ossSection">
+        <div class="ossBanner">
+          <div class="kicker">Open Source</div>
+          <h2>Built in the open</h2>
+          <p class="ossDesc">
+            channel-chat is MIT-licensed and ready to self-host.
+            Runs locally with SQLite or deploys to Cloudflare Workers for production.
+          </p>
+          <div class="ossBadges">
+            <span class="badge">TypeScript</span>
+            <span class="badge">Cloudflare Workers</span>
+            <span class="badge">D1 + Vectorize</span>
+            <span class="badge">R2 Storage</span>
+            <span class="badge">MCP Protocol</span>
+            <span class="badge">SQLite + sqlite-vec</span>
+          </div>
+          <div class="ossCta">
+            <a class="btn primary" href="https://github.com/nichochar/channel-chat">View on GitHub</a>
+            <a class="btn" href="#build">Watch the build video</a>
           </div>
         </div>
       </section>

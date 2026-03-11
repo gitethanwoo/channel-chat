@@ -933,7 +933,7 @@ $ channel-chat search "where do they explain vector databases?"</pre>
             <span class="badge">SQLite + sqlite-vec</span>
           </div>
           <div class="ossCta">
-            <a class="btn primary" href="https://github.com/nichochar/channel-chat">View on GitHub</a>
+            <a class="btn primary" href="https://github.com/gitethanwoo/channel-chat">View on GitHub</a>
             <a class="btn" href="#build">Watch the build video</a>
           </div>
         </div>
